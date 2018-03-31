@@ -2,29 +2,16 @@
 
 ## Short description
 
-This project aims to imitate the way several people can view and edit the same document concurrently.
+This project aims to imitate the way several people can view and edit the same document concurrently with Google Docs.
 
-## User Documentation
+## Features and general usage
 
-The program can be set to run in client or server mode. In client mode the user has to specify the address of the server it wants to connect to. If the server allows more than one file to be edited, the file also has to be selected from the list. In server mode the file (or list of files or directory) that the server will make available for the clients.
+### The Server
 
-```
-ce --client-mode <SERVER_IP> [FILE_NAME]
-ce --server-mode <FILES or DIRECTORIES>
-```
+The server stores the files, manages changes made to them and notifies online clients of these changes. 
 
-As a first version, the length of the document will be limited in size (in order to avoid having to deal with scrolling and other difficulties that arise when writing a text editor). If I have the time I will later remove some of these limitations, or use an already existing editor through and API (e.g. [neovim](https://neovim.io/doc/user/api.html)).
+### The Client
 
-## Technical documentation
+When starting a client, the user has to specify the IP address of the server (s)he wants to use. After a connection has been made, the client lists the available files on the server and the user can choose one to edit, or upload a new one. While more then one users are editing the same document, changes made by the other user can be seen real-time, but changes made above the cursor shouldn't push the lines down so as not to annoy the user. Undoing changes should undo only changes made by a specific user (and leave changes made by other users at the same time); this might be a bit difficult to implement.
 
-### Communication
 
-* use TCP, so we don't have to worry about lost packets
-* messages:
-    * request synchronization for ``file``, with current ``hash`` (this is the first message in a connection, but it may be later repeated to ensure the two sides are in sync): ``hash`` is the hash of the version of the file that the client has (if the client doesn't have the file, send all 0 hash) (client -> server)
-    * response to synchronization: (server -> client)
-        * if hash matched: ``OK`` ``hash``
-        * if hash was incorrect: ``WRONG`` and send the whole file
-    * character at ``position`` deleted in ``file`` (both way)
-    * insert ``character`` at ``position`` in ``file`` (meaning the character originally at ``position`` is now at ``position+1``) (both way)
-    * sign off message (client -> server)

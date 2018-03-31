@@ -3,26 +3,25 @@
 #define HEIGHT 20
 #define WIDTH 20
 
-
 int main()
 {
-    initscr();               /* Start curses mode          */
-    //raw();                  // line buffering disabled
+
+    // init ncurses
+    initscr();
+    //raw();
     cbreak();
     keypad(stdscr, TRUE);
     noecho();
     curs_set(1);
 
 
-    //printw("Hello World !!!");  /* Print Hello World          */
-    //refresh();               /* Print it on to the real screen */
-    //getch();                 /* Wait for user input */
-    //mvprintw(0, 1, "Hello World !!!");  /* Print Hello World          */
-    //refresh();               /* Print it on to the real screen */
-    //getch();                 /* Wait for user input */
-    
-    char s[2];
-    s[1] = 0;
+    //printw("Hello World !!!");
+    //refresh();
+    //getch();
+    //mvprintw(0, 1, "Hello World !!!");
+    //refresh();
+    //getch();
+
     int pozX = 0;
     int pozY = 0;
     int c=0;
