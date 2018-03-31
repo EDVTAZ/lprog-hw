@@ -19,3 +19,9 @@ TODO
 # Basic outline of operation
 
 The server constantly listens for new connections from clients. When a new client connects it lists the available buffers for it. After the client selects which one it wants to edit, it waits for changes from clients to the buffers. When a change (cursor movement, insertion or deletion) is received, the server stores the change, and broadcasts it to all the other active clients. To avoid inconsistencies, each file has a version number, that is incremented each time a change is made. Every change sent by the client contains the version of the file, and if it isn't correct, the server will reject it.
+
+# Modules
+
+* Data backend: holds the currently edited buffer, takes commands like: load from file, move cursor, insert char, delete char
+* UI: responsible for displaying the text, cursors, etc.
+* Network: responsible for synchronizing state with server/client
