@@ -10,9 +10,11 @@
 
 typedef struct{
     
-    rope* str;
     int id;
+    // rope structure containing the line
+    rope* str;
 
+    // neighbouring lines
     line* prev;
     line* next;
 } line;
@@ -28,9 +30,13 @@ line* line_free(line* l);
 
 typedef struct{
     
-    line* own_line;
-    int pos;
     int id;
+    // the line the cursor is currently on
+    line* own_line;
+    // the x index of the cursor
+    int pos;
+    // 1 if the cursor is visible on the screen, 0 otherwise
+    int on_screen;
 
 } cursor;
 
@@ -60,13 +66,18 @@ int cursor_del(cursor* c);
 
 
 // BUFFER ---------------------------------------------------------------
-// it is the buffers responsibility to keep the network and UI modules updated (through their respective interfaces) of all updates made to the contents and the cursors' positions
-// in short: the buffer pushes changes
 
 typedef struct{
     
+    int id;
+    // version of the file
+    int ver;
     size_t num_lines;
     int line_id_cnt;
+
+    // dimensions of the ui
+    int height;
+    int width;
 
     // very first and last line of the buffer
     line* first;
@@ -80,35 +91,48 @@ typedef struct{
     cursor* own_curs;
     cursor[MAX_CURSOR_NUM] peer_curss;
 
+    // connected ui
+    ui* u;
+
 } buffer;
 
-// initialize empty buffer
-buffer* buffer_new();
+// initialize empty buffer with h height and w width
+buffer* buffer_new(int h, int w);
 
-// initialize buffer from file
-buffer* buffer_from_file(FILE* fp);
+// initialize buffer from file with h height and w width
+buffer* buffer_from_file(FILE* fp, int h, int w);
+
+// save contents of buffer to file
+int buffer_save(FILE* fp);
 
 // deletes buffer
 void buffer_free(buffer* b);
 
+// result of buffer operation
+// FAILED: operation failed
+// UPDATE: operation successful, UI update needed
+// SUCCESS: operation successful, no UI updgrade needed
+typedef enum{FAILED, UPDATE, SUCCESS} BRES;
+
 // insert line containing cstr after line with id, with the id new_id
 // cstr shall not contain newline characters and be null terminated
 // if new_id is -1 a new id will be automatically generated
-// returns the new id on success, -1 on failure
-int buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id);
+BRES buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id);
+
+// delete line
+BRES buffer_deletel(buffer* b, int lid);
 
 // create cursor with id in lid line at pos position
-// return -1 on failure
-int bcursor_new(int id, int lid, int pos);
+BRES bcursor_new(int id, int lid, int pos);
 
 // move cursor
-CMOVE_RES bcursor_move(int id, CMOVE_DIR dir);
+BRES bcursor_move(int id, CMOVE_DIR dir);
 
 // isnert character at cursor location
-int bcursor_insert(int id, char c);
+BRES bcursor_insert(int id, char c);
 
 // delete character at cursor location
-int bcursor_del(int id);
+BRES bcursor_del(int id);
 
 
 

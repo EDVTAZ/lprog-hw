@@ -7,10 +7,10 @@ ODIR=obj
 
 LIBS=-lncurses -lrope
 
-_DEPS = buffer.h rope.h
+_DEPS = ui.h buffer.h rope.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = main.o buffer.c
+_OBJ = main.o ui.o buffer.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 
