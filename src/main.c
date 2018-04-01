@@ -1,10 +1,14 @@
-#include<ncurses.h>
+#include <ncurses.h>
+#include <rope.h>
+#include <stdlib.h>
 
 #define HEIGHT 20
 #define WIDTH 20
 
 int main()
 {
+
+
 
     // init ncurses
     initscr();
@@ -14,14 +18,35 @@ int main()
     noecho();
     curs_set(1);
 
+    /*
+    // rope tests
+    rope* r = rope_new();
+    rope_insert(r, 0, "hello there\n\n");
+    rope_insert(r, 13, "general kenobi...\n\n");
 
-    //printw("Hello World !!!");
-    //refresh();
-    //getch();
-    //mvprintw(0, 1, "Hello World !!!");
-    //refresh();
-    //getch();
+    char* teststr = rope_create_cstr(r);
+    printw(teststr);
+    free(teststr);
 
+    rope_del(r, 2, 6);
+
+    teststr = rope_create_cstr(r);
+    printw(teststr);
+    free(teststr);
+
+    rope_free(r);
+    */
+
+    /*
+    printw("Hello World !!!");
+    refresh();
+    getch();
+    mvprintw(0, 1, "Hello World !!!");
+    refresh();
+    getch();
+    */
+
+    char s[2];
     int pozX = 0;
     int pozY = 0;
     int c=0;
