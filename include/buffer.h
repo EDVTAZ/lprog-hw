@@ -31,6 +31,8 @@ line* line_free(line* l);
 typedef struct{
     
     int id;
+    // buffer of cursor
+    buffer* buf;
     // the line the cursor is currently on
     line* own_line;
     // the x index of the cursor
@@ -41,7 +43,7 @@ typedef struct{
 } cursor;
 
 // create new cursor wit id, in the line with lid at pos position
-cursor* cursor_new(int id, int lid, int pos);
+cursor* cursor_new(int id, buffer* buf, line* l, int pos);
 
 // delete cursor
 void cursor_free(cursor* c);
@@ -51,7 +53,7 @@ void cursor_free(cursor* c);
 // DOWN: same as up but the other direction
 // HORIZONTAL: cursor moved, but is still in the same line
 // NONE: cursor didn't move
-typedef enum {UP, DOWN, HORIZONTAL, NONE} CMOVE_RES;
+typedef enum {UP, DOWN, HORIZONTAL, NL_UP, NL_DOWN, NONE} CMOVE_RES;
 // direction to move cursor
 typedef enum {UP, DOWN, LEFT, RIGHT} CMOVE_DIR;
 
@@ -59,10 +61,13 @@ typedef enum {UP, DOWN, LEFT, RIGHT} CMOVE_DIR;
 CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir);
 
 // isnert character at cursor location
-int cursor_insert(cursor* c, char c);
+CMOVE_RES cursor_insert(cursor* c, char c);
+
+// insert line at cursor position with id
+CMOVE_RES cursor_insert_line(cursor* c, int id);
 
 // delete character at cursor location
-int cursor_del(cursor* c);
+CMOVE_RES cursor_del(cursor* c);
 
 
 // BUFFER ---------------------------------------------------------------
@@ -120,19 +125,24 @@ typedef enum{FAILED, UPDATE, SUCCESS} BRES;
 BRES buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id);
 
 // delete line
-BRES buffer_deletel(buffer* b, int lid);
+BRES buffer_deletel(buffer* b, buffer* b, int lid);
 
 // create cursor with id in lid line at pos position
-BRES bcursor_new(int id, int lid, int pos);
+BRES bcursor_new(buffer* b, int id, int lid, int pos);
 
 // move cursor
-BRES bcursor_move(int id, CMOVE_DIR dir);
+BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir);
 
 // isnert character at cursor location
-BRES bcursor_insert(int id, char c);
+BRES bcursor_insert(buffer* b, int id, char c);
+
+// isnert new line at cursor location
+// if cursor is at pos 0, it will stay in the line and the new line will be above the current line
+// if the cursor is somewhere else, it will be moved to pos 0 in the new line, and the contents to the right of the cursor will be moved into the new line
+BRES bcursor_insert_line(buffer* b, int id);
 
 // delete character at cursor location
-BRES bcursor_del(int id);
+BRES bcursor_del(buffer* b, int id);
 
 
 
