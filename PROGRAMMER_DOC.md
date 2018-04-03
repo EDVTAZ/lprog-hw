@@ -25,3 +25,19 @@ The server constantly listens for new connections from clients. When a new clien
 * Data backend: holds the currently edited buffer, takes commands like: load from file, move cursor, insert char, delete char
 * UI: responsible for displaying the text, cursors, etc.
 * Network: responsible for synchronizing state with server/client
+
+## Network
+
+### Login protocol
+
+1. establish secure channel...
+2. C -> S : username + password hash
+3. S -> C : OK/FAIL + file list
+4. C -> S : file id
+5. S -> C : buffer with ids
+
+### Input event
+
+| file id | file version | user id | event id (cursor move, insert etc.) | event data |
+
+cursor id = user id
