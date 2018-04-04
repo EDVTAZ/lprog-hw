@@ -4,19 +4,29 @@
 #define buffer_h
 
 #include <rope.h>
+#include <ui.h>
+
+typedef struct line line;
+typedef struct cursor cursor;
+typedef struct buffer buffer;
+
+// this might not be a very good idea...
+#ifndef MAX_CURSOR_NUM
+#define MAX_CURSOR_NUM 20
+#endif
 
 
 // LINE ---------------------------------------------------------------
 
-typedef struct{
+typedef struct line{
     
     int id;
     // rope structure containing the line
     rope* str;
 
     // neighbouring lines
-    line* prev;
-    line* next;
+    struct line* prev;
+    struct line* next;
 } line;
 
 // create new line with id and insert it into the chain between prev and next
@@ -28,7 +38,7 @@ line* line_free(line* l);
 
 // CURSOR ---------------------------------------------------------------
 
-typedef struct{
+typedef struct cursor{
     
     int id;
     // buffer of cursor
@@ -43,7 +53,7 @@ typedef struct{
 } cursor;
 
 // create new cursor wit id, in the line with lid at pos position
-cursor* cursor_new(int id, buffer* buf, line* l, int pos);
+cursor* cursor_new(int id, buffer* buf, line* l, int pos, int os);
 
 // delete cursor
 void cursor_free(cursor* c);
@@ -53,15 +63,15 @@ void cursor_free(cursor* c);
 // DOWN: same as up but the other direction
 // HORIZONTAL: cursor moved, but is still in the same line
 // NONE: cursor didn't move
-typedef enum {UP, DOWN, HORIZONTAL, NL_UP, NL_DOWN, NONE} CMOVE_RES;
+typedef enum cmove_res{aUP, aDOWN, aHORIZONTAL, aNL_UP, aNL_DOWN, aNONE} CMOVE_RES;
 // direction to move cursor
-typedef enum {UP, DOWN, LEFT, RIGHT} CMOVE_DIR;
+typedef enum cmove_dir{UP, DOWN, LEFT, RIGHT} CMOVE_DIR;
 
 // move cursor
 CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir);
 
 // isnert character at cursor location
-CMOVE_RES cursor_insert(cursor* c, char c);
+CMOVE_RES cursor_insert(cursor* c, char chr);
 
 // insert line at cursor position with id
 CMOVE_RES cursor_insert_line(cursor* c, int id);
@@ -72,12 +82,12 @@ CMOVE_RES cursor_del(cursor* c);
 
 // BUFFER ---------------------------------------------------------------
 
-typedef struct{
+typedef struct buffer{
     
     int id;
-    // version of the file
+    // veranion of the file
     int ver;
-    size_t num_lines;
+    int num_lines;
     int line_id_cnt;
 
     // dimensions of the ui
@@ -94,7 +104,7 @@ typedef struct{
 
     // cursors
     cursor* own_curs;
-    cursor[MAX_CURSOR_NUM] peer_curss;
+    cursor* peer_curss[MAX_CURSOR_NUM];
 
     // connected ui
     ui* u;
@@ -102,7 +112,7 @@ typedef struct{
 } buffer;
 
 // initialize empty buffer with h height and w width
-buffer* buffer_new(int h, int w);
+buffer* buffer_new(int id, int cid, int ver, int h, int w);
 
 // initialize buffer from file with h height and w width
 buffer* buffer_from_file(FILE* fp, int h, int w);
@@ -117,7 +127,7 @@ void buffer_free(buffer* b);
 // FAILED: operation failed
 // UPDATE: operation successful, UI update needed
 // SUCCESS: operation successful, no UI updgrade needed
-typedef enum{FAILED, UPDATE, SUCCESS} BRES;
+typedef enum bres{FAILED, UPDATE, SUCCESS} BRES;
 
 // insert line containing cstr after line with id, with the id new_id
 // cstr shall not contain newline characters and be null terminated
@@ -125,7 +135,7 @@ typedef enum{FAILED, UPDATE, SUCCESS} BRES;
 BRES buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id);
 
 // delete line
-BRES buffer_deletel(buffer* b, buffer* b, int lid);
+BRES buffer_deletel(buffer* b, int lid);
 
 // create cursor with id in lid line at pos position
 BRES bcursor_new(buffer* b, int id, int lid, int pos);
@@ -134,7 +144,7 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos);
 BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir);
 
 // isnert character at cursor location
-BRES bcursor_insert(buffer* b, int id, char c);
+BRES bcursor_insert(buffer* b, int id, char chr);
 
 // isnert new line at cursor location
 // if cursor is at pos 0, it will stay in the line and the new line will be above the current line

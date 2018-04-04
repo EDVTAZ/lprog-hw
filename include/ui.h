@@ -18,7 +18,7 @@ typedef struct{
 } ui;
 
 // initialize ui
-ui* ui_init(int h, int w);
+ui* ui_init(buffer* b);
 
 // free ui
 void ui_free(ui* u);
