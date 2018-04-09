@@ -2,7 +2,7 @@
 #include <rope.h>
 #include <ui.h>
 #include <buffer.h>
-#include "../include/buffer.h"
+//#include "../include/buffer.h"
 
 
 // LINE ---------------------------------------------------------------
@@ -127,10 +127,10 @@ CMOVE_RES cursor_insert(cursor* c, char chr){
 //CMOVE_RES cursor_insert_line(cursor* c, int id)
 
 // delete character at cursor location (deleting endline not handled here)
-int cursor_del(cursor* c){
+CMOVE_RES cursor_del(cursor* c){
     if(c->pos == 0) return -1;
 
-    rope_delete(c->own_line->str, c->pos-1, 1);
+    rope_del(c->own_line->str, c->pos-1, 1);
     c->pos--;
     return 0;
 }
@@ -278,8 +278,8 @@ BRES bcursor_insert_line(buffer* b, int id){
         // TODO move other cursors with us
         rope_free(ll->str);
         ll->str = rope_copy(ll->prev->str);
-        rope_delete(ll->prev->str, c->pos, rope_char_count(ll->str)-c->pos);
-        rope_delete(ll->str, 0, c->pos);
+        rope_del(ll->prev->str, c->pos, rope_char_count(ll->str)-c->pos);
+        rope_del(ll->str, 0, c->pos);
         
     }
 

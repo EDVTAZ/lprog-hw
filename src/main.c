@@ -2,107 +2,53 @@
 #include <rope.h>
 #include <stdlib.h>
 
-#define HEIGHT 20
-#define WIDTH 20
+#include <buffer.h>
+//#include "../include/buffer.h"
+#include <ui.h>
+
+#define HEIGHT 80
+#define WIDTH 80
 
 int main()
 {
 
+    buffer* b = buffer_new(0, 0, 0, HEIGHT, WIDTH);
 
-
-    // init ncurses
-    initscr();
-    //raw();
-    cbreak();
-    keypad(stdscr, TRUE);
-    noecho();
-    curs_set(1);
-
-    /*
-    // rope tests
-    rope* r = rope_new();
-    rope_insert(r, 0, "hello there\n\n");
-    rope_insert(r, 13, "general kenobi...\n\n");
-
-    char* teststr = rope_create_cstr(r);
-    printw(teststr);
-    free(teststr);
-
-    rope_del(r, 2, 6);
-
-    teststr = rope_create_cstr(r);
-    printw(teststr);
-    free(teststr);
-
-    rope_free(r);
-    */
-
-    /*
-    printw("Hello World !!!");
-    refresh();
-    getch();
-    mvprintw(0, 1, "Hello World !!!");
-    refresh();
-    getch();
-    */
-
-    char s[2];
-    int pozX = 0;
-    int pozY = 0;
-    int c=0;
-    char buf[20][20];
+    int c;
     while(c != KEY_F(8)){
         c = getch();
 
         switch(c){
             case KEY_LEFT:
-                if(pozX > 0) pozX--;
+                bcursor_move(b, 0, LEFT);
                 break;
                 
             case KEY_RIGHT:
-                if(pozX < WIDTH-1) pozX++;
-                else if(pozY < HEIGHT-1){
-                    pozX = 0;
-                    pozY++;
-                }
+                bcursor_move(b, 0, RIGHT);
                 break;
 
             case KEY_UP:
-                if(pozY > 0) pozY--;
+                bcursor_move(b, 0, UP);
                 break;
 
             case KEY_DOWN:
-                if(pozY < HEIGHT-1) pozY++;
+                bcursor_move(b, 0, DOWN);
                 break;
 
             case KEY_BACKSPACE:
-                if(pozX > 0){
-                    pozX--;
-                    buf[pozX][pozY]=0;
-                }
-                else if(pozY > 0){
-                    pozY--;
-                    pozX = WIDTH-1;
-                    buf[pozX][pozY]=0;
-                }
+                bcursor_del(b, 0);
+                break;
 
             case KEY_F(8):
                 break;
 
+            case '\n':
+                bcursor_insert_line(b, 0);
+                break;
+
             default:
-                buf[pozX][pozY] = c;
-                s[0] = c;
-                mvprintw(pozY, pozX, s);
-                s[0] = buf[pozX][pozY];
-                mvprintw(HEIGHT+1, WIDTH+1, s);
-                if(pozX < WIDTH-1) pozX++;
-                else if(pozY < HEIGHT-1){
-                    pozX = 0;
-                    pozY++;
-                }
+                bcursor_insert(b, 0, c);
         }
-        move(pozY, pozX);
-        refresh();
     }
 
 

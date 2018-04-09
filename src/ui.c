@@ -1,0 +1,68 @@
+#include <ui.h>
+#include <stdlib.h>
+//#include "../include/ui.h"
+
+// initialize ui
+ui* ui_init(buffer* b){
+    ui* u = malloc(sizeof(ui));
+
+    u->buf = b;
+    u->height = b->height;
+    u->width = b->width;
+    //
+    // init ncurses
+    initscr();
+    //raw();
+    cbreak();
+    keypad(stdscr, TRUE);
+    noecho();
+    curs_set(1);
+
+    return u;
+}
+
+// free ui
+void ui_free(ui* u){
+
+    endwin();
+
+    free(u);
+}
+
+// update everything
+void ui_update(ui* u){
+    clear();
+    char cstr[u->width+1];
+    line* lit = u->buf->top;
+    int ypos, xpos;
+
+    for(int i=0; i<u->height; i++){
+        if(u->buf->own_curs->own_line == lit){
+            ypos = i;
+            xpos = u->buf->own_curs->pos;
+        }
+
+        rope_write_cstr(lit->str, cstr);
+        mvprintw(i, 0, cstr);
+        if(lit->next) lit = lit->next;
+        else break;
+    }
+    move(ypos, xpos);
+    refresh();
+}
+
+// update the location of a cursor
+void ui_curs_update(ui* u, cursor* c){} 
+
+// update after a deletion
+void ui_del_update(ui* u, cursor* c){}  
+
+// update after an insertion
+void ui_ins_update(ui* u, cursor* c){}  
+
+// update after a new line was inserted
+void ui_nline_update(ui* u, line* l){}  
+
+// update after a line was deleted
+void ui_dline_update(ui* u, line* l){}  
+

@@ -1,5 +1,3 @@
-// AUTHOR: Szekely Gabor
-
 #ifndef buffer_h
 #define buffer_h
 
@@ -18,7 +16,7 @@ typedef struct buffer buffer;
 
 // LINE ---------------------------------------------------------------
 
-typedef struct line{
+struct line{
     
     int id;
     // rope structure containing the line
@@ -27,7 +25,7 @@ typedef struct line{
     // neighbouring lines
     struct line* prev;
     struct line* next;
-} line;
+};
 
 // create new line with id and insert it into the chain between prev and next
 line* line_new(int id, line* prev, line* next);
@@ -38,7 +36,7 @@ line* line_free(line* l);
 
 // CURSOR ---------------------------------------------------------------
 
-typedef struct cursor{
+struct cursor{
     
     int id;
     // buffer of cursor
@@ -50,7 +48,7 @@ typedef struct cursor{
     // 1 if the cursor is visible on the screen, 0 otherwise
     int on_screen;
 
-} cursor;
+};
 
 // create new cursor wit id, in the line with lid at pos position
 cursor* cursor_new(int id, buffer* buf, line* l, int pos, int os);
@@ -82,7 +80,7 @@ CMOVE_RES cursor_del(cursor* c);
 
 // BUFFER ---------------------------------------------------------------
 
-typedef struct buffer{
+struct buffer{
     
     int id;
     // veranion of the file
@@ -107,9 +105,9 @@ typedef struct buffer{
     cursor* peer_curss[MAX_CURSOR_NUM];
 
     // connected ui
-    ui* u;
+    struct ui* u;
 
-} buffer;
+};
 
 // initialize empty buffer with h height and w width
 buffer* buffer_new(int id, int cid, int ver, int h, int w);
