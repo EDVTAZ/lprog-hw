@@ -250,6 +250,7 @@ BRES buffer_scroll(buffer* b, CMOVE_DIR dir){
 // should be used to trim the visible area, when l line was inserted
 BRES buffer_trim(buffer* b, line* l){
     // TODO 
+    b->bottom = b->bottom->prev;
     return UPDATE;
 }
 
@@ -269,6 +270,7 @@ BRES bcursor_insert_line(buffer* b, int id){
         else buffer_trim(b, ll);
         if(c->own_line == b->first) b->first = c->own_line;
         
+        ui_update(b->u);
         return UPDATE;
     }
 
@@ -290,7 +292,10 @@ BRES bcursor_insert_line(buffer* b, int id){
     }
     else buffer_trim(b, ll);
     if(c->own_line == b->last) b->last = c->own_line;
-    
+
+    c->own_line = c->own_line->next;
+
+    ui_update(b->u);
     return UPDATE;
 
     
