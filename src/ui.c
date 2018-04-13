@@ -32,7 +32,7 @@ void ui_free(ui* u){
 // update everything
 void ui_update(ui* u){
     clear();
-    char cstr[u->width+1];
+    char cstr[u->width * u->height + 1];
     line* lit = u->buf->top;
     int ypos, xpos;
 
@@ -44,9 +44,11 @@ void ui_update(ui* u){
 
         rope_write_cstr(lit->str, cstr);
         mvprintw(i, 0, cstr);
+        printw("~");
         if(lit->next) lit = lit->next;
         else break;
     }
+    mvprintw(59, 0, "%d %d\n", u->buf->first->id, u->buf->last->id);
     move(ypos, xpos);
     refresh();
 }

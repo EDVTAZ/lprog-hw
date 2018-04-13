@@ -6,8 +6,8 @@
 //#include "../include/buffer.h"
 #include <ui.h>
 
-#define HEIGHT 80
-#define WIDTH 80
+#define HEIGHT 20
+#define WIDTH 20
 
 int main()
 {

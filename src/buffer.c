@@ -4,6 +4,33 @@
 #include <buffer.h>
 //#include "../include/buffer.h"
 
+BRES buffer_scroll(buffer* b, CMOVE_DIR dir){
+    // TODO adjust what cursors are on screen
+    if(dir == UP){
+        b->top = b->top->prev;
+        b->bottom = b->bottom->prev;
+    }
+    if(dir == DOWN){
+        b->top = b->top->next;
+        b->bottom = b->bottom->next;
+    }
+}
+
+// should be used to trim the visible area, when l line was inserted
+BRES buffer_trim(buffer* b, line* l){
+    // TODO 
+    b->bottom = b->bottom->prev;
+    return UPDATE;
+}
+
+// after deleting a line, there is space for one more
+BRES buffer_extend(buffer* b, line* l){
+    // TODO
+    if(b->bottom->next) b->bottom = b->bottom->next;
+    else if(b->top->prev) b->top = b->top->prev;
+
+    return UPDATE;
+}
 
 // LINE ---------------------------------------------------------------
 
@@ -61,7 +88,7 @@ void cursor_free(cursor* c){
 CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir){
     switch(dir){
         case UP:
-            if(c->own_line->prev){
+            if(c->own_line->prev && c->own_line != c->buf->first){
                 c->own_line = c->own_line->prev;
                 if(rope_char_count(c->own_line->str) < c->pos) c->pos = rope_char_count(c->own_line->str);
                 return aUP;
@@ -70,7 +97,7 @@ CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir){
             break;
 
         case DOWN:
-            if(c->own_line->next){
+            if(c->own_line->next && c->own_line != c->buf->last){
                 c->own_line = c->own_line->next;
                 if(rope_char_count(c->own_line->str) < c->pos) c->pos = rope_char_count(c->own_line->str);
                 return aDOWN;
@@ -86,7 +113,7 @@ CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir){
             }
             // cursor moves into the previous line
             else{
-                if(c->own_line->prev){
+                if(c->own_line->prev && c->own_line != c->buf->first){
                     c->own_line = c->own_line->prev;
                     c->pos = rope_char_count(c->own_line->str);
                     return aUP;
@@ -103,7 +130,7 @@ CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir){
             }
             // cursor moves into the previous line
             else{
-                if(c->own_line->next){
+                if(c->own_line->next && c->own_line != c->buf->last){
                     c->own_line = c->own_line->next;
                     c->pos = 0;
                     return aDOWN;
@@ -117,6 +144,12 @@ CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir){
 // insert character at cursor location
 CMOVE_RES cursor_insert(cursor* c, char chr){
     hstr[0] = chr;
+
+    if( rope_char_count(c->own_line->str) && rope_char_count(c->own_line->str) % c->buf->width == 0 ){
+        buffer_scroll(c->buf, DOWN);
+        buffer_trim(c->buf, c->own_line);
+    }
+
     rope_insert(c->own_line->str, c->pos, hstr);
     c->pos++;
 
@@ -129,6 +162,11 @@ CMOVE_RES cursor_insert(cursor* c, char chr){
 // delete character at cursor location (deleting endline not handled here)
 CMOVE_RES cursor_del(cursor* c){
     if(c->pos == 0) return -1;
+
+    if( rope_char_count(c->own_line->str) != 1 && rope_char_count(c->own_line->str) % c->buf->width == 1 ){
+        buffer_scroll(c->buf, UP);
+        buffer_extend(c->buf, c->own_line);
+    }
 
     rope_del(c->own_line->str, c->pos-1, 1);
     c->pos--;
@@ -201,8 +239,12 @@ BRES buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id){
 }
 
 // delete line
-BRES buffer_deletel(buffer* b, int lid){
-    // TODO
+BRES buffer_deletel(buffer* b, line* l){
+    // TODO handle other cursors
+
+    buffer_extend(b, l);
+    line_free(l);
+
     return UPDATE;
 }
 
@@ -235,24 +277,6 @@ BRES bcursor_insert(buffer* b, int id, char chr){
     return UPDATE;
 }
 
-BRES buffer_scroll(buffer* b, CMOVE_DIR dir){
-    // TODO adjust what cursors are on screen
-    if(dir == UP){
-        b->top = b->top->prev;
-        b->bottom = b->bottom->prev;
-    }
-    if(dir == DOWN){
-        b->top = b->top->next;
-        b->bottom = b->bottom->next;
-    }
-}
-
-// should be used to trim the visible area, when l line was inserted
-BRES buffer_trim(buffer* b, line* l){
-    // TODO 
-    b->bottom = b->bottom->prev;
-    return UPDATE;
-}
 
 // isnert new line at cursor location
 // if cursor is at pos 0, it will stay in the line and the new line will be above the current line
@@ -263,11 +287,15 @@ BRES bcursor_insert_line(buffer* b, int id){
 
     if(c->pos == 0){
         line* ll = line_new(b->line_id_cnt++, c->own_line->prev, c->own_line);
+        if(c->own_line == b->first) b->first = ll;
 
         if(c->own_line == b->top){
             buffer_scroll(b, UP);
         }
-        else buffer_trim(b, ll);
+        else {
+            printf("%p\n", b->bottom);
+            buffer_trim(b, ll);
+        }
         if(c->own_line == b->first) b->first = c->own_line;
         
         ui_update(b->u);
@@ -275,6 +303,7 @@ BRES bcursor_insert_line(buffer* b, int id){
     }
 
     line* ll = line_new(b->line_id_cnt++, c->own_line, c->own_line->next);
+    if(c->own_line == b->last) b->last = ll;
 
     if(c->pos != rope_char_count(c->own_line->str)){
         // TODO move other cursors with us
@@ -305,7 +334,16 @@ BRES bcursor_insert_line(buffer* b, int id){
 BRES bcursor_del(buffer* b, int id){
     
     cursor* c = bcursor_find(b, id);
-    cursor_del(c);
+    if(c->pos > 0) cursor_del(c);
+    else{
+        if(c->own_line == b->first) return FAILED;
+        bcursor_move(b, id, LEFT);
+        if(c->own_line->next == b->last) b->last = c->own_line;
+        if( rope_write_cstr(c->own_line->next->str, b->sp)>1 ){
+            rope_insert(c->own_line->str, rope_char_count(c->own_line->str), b->sp);
+        }
+        buffer_deletel(b, c->own_line->next);
+    }
 
     ui_update(b->u);
     // TODO correct positions of cursors with greater position than ours

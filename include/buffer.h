@@ -107,6 +107,9 @@ struct buffer{
     // connected ui
     struct ui* u;
 
+    // scratch pad cstr
+    char sp[160];
+
 };
 
 // initialize empty buffer with h height and w width
@@ -133,7 +136,7 @@ typedef enum bres{FAILED, UPDATE, SUCCESS} BRES;
 BRES buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id);
 
 // delete line
-BRES buffer_deletel(buffer* b, int lid);
+BRES buffer_deletel(buffer* b, line* l);
 
 // create cursor with id in lid line at pos position
 BRES bcursor_new(buffer* b, int id, int lid, int pos);
