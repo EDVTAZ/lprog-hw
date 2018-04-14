@@ -36,6 +36,15 @@ void ui_update(ui* u){
     line* lit = u->buf->top;
     int ypos, xpos;
 
+    lit = u->buf->first;
+    for(int i=0; lit; i++){
+
+        mvprintw(i, 50, "%d", lit->id);
+        if(lit->next) lit = lit->next;
+        else break;
+    }
+
+    lit = u->buf->top;
     for(int i=0; i<u->height; i++){
         if(u->buf->own_curs->own_line == lit){
             ypos = i;
@@ -44,11 +53,13 @@ void ui_update(ui* u){
 
         rope_write_cstr(lit->str, cstr);
         mvprintw(i, 0, cstr);
-        printw("~");
+        mvprintw(i, 25, "   |%d", lit->id);
         if(lit->next) lit = lit->next;
         else break;
     }
-    mvprintw(59, 0, "%d %d\n", u->buf->first->id, u->buf->last->id);
+
+    mvprintw(49, 0, "%d %d\n", u->buf->first->id, u->buf->last->id);
+    mvprintw(50, 0, "%d %d\n", u->buf->top->id, u->buf->bottom->id);
     move(ypos, xpos);
     refresh();
 }
