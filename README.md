@@ -18,6 +18,9 @@ When starting a client, the user can specify the IP address of the server (s)he 
 
 * Undo: Unduing changes should undo only changes made by a specific user (and leave changes made by other users at the same time); this might be a bit difficult to implement.
 
+## Dependencies
+
+* msgpack
 
 
 

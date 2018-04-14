@@ -12,7 +12,12 @@
 int main()
 {
 
-    buffer* b = buffer_new(0, 0, 0, HEIGHT, WIDTH);
+    //buffer* b = buffer_new(0, 0, HEIGHT, WIDTH, 1);
+    buffer* b = buffer_from_file("testfile", 0, HEIGHT, WIDTH, 1);
+    char** data;
+    int size;
+
+    ui_update(b->u);
 
     int c;
     while(c != KEY_F(8)){
@@ -40,6 +45,21 @@ int main()
                 break;
 
             case KEY_F(8):
+                buffer_save("atestfile", b);
+                buffer_free(b);
+                break;
+
+            case KEY_F(7):
+
+                data = malloc(sizeof(char*));
+                size = buffer_serialize(b, data);
+
+                buffer_free(b);
+
+                b = buffer_deserialize(*data, size);
+                free(*data);
+                free(data);
+
                 break;
 
             case '\n':
@@ -53,6 +73,7 @@ int main()
 
 
     endwin();                /* End curses mode        */
+
 
     return 0;
 }

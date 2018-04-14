@@ -1,11 +1,11 @@
 IDIR =../include
 LDIR =../lib
 CC=gcc
-CFLAGS=-I$(IDIR) -L$(LDIR)
+CFLAGS=-I$(IDIR) -L$(LDIR) -ggdb
 
 ODIR=obj
 
-LIBS=-lncurses -lrope
+LIBS=-lncurses -lrope -lmsgpackc
 
 _DEPS = ui.h buffer.h rope.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))

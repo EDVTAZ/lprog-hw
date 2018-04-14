@@ -101,7 +101,9 @@ struct buffer{
     line* bottom;
 
     // cursors
+    // own_curs is local, always has id=0
     cursor* own_curs;
+    // this should be in syncrhon across all clients and the server
     cursor* peer_curss[MAX_CURSOR_NUM];
 
     // connected ui
@@ -113,18 +115,19 @@ struct buffer{
 };
 
 // initialize empty buffer with h height and w width
-buffer* buffer_new(int id, int cid, int ver, int h, int w);
+// if ui is 0, then there won't be a ui (for server side)
+buffer* buffer_new(int id, int ver, int h, int w, int ui);
 
 // initialize buffer from file with h height and w width
-buffer* buffer_from_file(FILE* fp, int h, int w);
+buffer* buffer_from_file(char* fname, int id, int h, int w, int ui);
 
 // save contents of buffer to file
-int buffer_save(FILE* fp);
+int buffer_save(char* fname, buffer* b);
 
 // deletes buffer
 void buffer_free(buffer* b);
 
-// result of buffer operation
+// result ofbuffer operation
 // FAILED: operation failed
 // UPDATE: operation successful, UI update needed
 // SUCCESS: operation successful, no UI updgrade needed
@@ -155,6 +158,11 @@ BRES bcursor_insert_line(buffer* b, int id);
 // delete character at cursor location
 BRES bcursor_del(buffer* b, int id);
 
+//// serialization for synchronization between server and client
+// serialize
+int buffer_serialize(buffer* b, char** serd);
 
+// deserialize
+buffer* buffer_deserialize(char* serd, int size);
 
 #endif
