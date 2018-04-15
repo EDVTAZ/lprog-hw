@@ -500,7 +500,7 @@ BRES bcursor_del(buffer* b, int id){
 
 #define UNPACKED_BUFFER_SIZE 1024
 
-buffer* buffer_deserialize(char* serd, int size){
+buffer* buffer_deserialize(char* serd, int size, int u){
     
     buffer* b = malloc(sizeof(buffer));
     typedef enum {START, LINES, CURSORS} PHASE;
@@ -626,8 +626,12 @@ buffer* buffer_deserialize(char* serd, int size){
         printf("The data in the buf is invalid format.\n");
     }
 
-    b->u = ui_init(b);
-    ui_update(b->u);
+    if(u)
+    {
+        b->u = ui_init(b);
+        ui_update(b->u);
+    }
+    else b->u = NULL;
 
     return b;
 }

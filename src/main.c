@@ -60,7 +60,7 @@ int main()
 
                 buffer_free(b);
 
-                b = buffer_deserialize(*data, size);
+                b = buffer_deserialize(*data, size, 1);
                 free(*data);
                 free(data);
 

@@ -163,6 +163,6 @@ BRES bcursor_del(buffer* b, int id);
 int buffer_serialize(buffer* b, char** serd);
 
 // deserialize
-buffer* buffer_deserialize(char* serd, int size);
+buffer* buffer_deserialize(char* serd, int size, int u);
 
 #endif
