@@ -14,34 +14,38 @@ int main()
 
     //buffer* b = buffer_new(0, 0, HEIGHT, WIDTH, 1);
     buffer* b = buffer_from_file("testfile", 0, HEIGHT, WIDTH, 1);
+    bcursor_new(b, 1, 0, 0);
     char** data;
     int size;
+
+    int cid = 0;
 
     ui_update(b->u);
 
     int c;
     while(c != KEY_F(8)){
+        cid ^= 1;
         c = getch();
 
         switch(c){
             case KEY_LEFT:
-                bcursor_move(b, 0, LEFT);
+                bcursor_move(b, cid, LEFT);
                 break;
                 
             case KEY_RIGHT:
-                bcursor_move(b, 0, RIGHT);
+                bcursor_move(b, cid, RIGHT);
                 break;
 
             case KEY_UP:
-                bcursor_move(b, 0, UP);
+                bcursor_move(b, cid, UP);
                 break;
 
             case KEY_DOWN:
-                bcursor_move(b, 0, DOWN);
+                bcursor_move(b, cid, DOWN);
                 break;
 
             case KEY_BACKSPACE:
-                bcursor_del(b, 0);
+                bcursor_del(b, cid);
                 break;
 
             case KEY_F(8):
@@ -63,11 +67,11 @@ int main()
                 break;
 
             case '\n':
-                bcursor_insert_line(b, 0);
+                bcursor_insert_line(b, cid);
                 break;
 
             default:
-                bcursor_insert(b, 0, c);
+                bcursor_insert(b, cid, c);
         }
     }
 

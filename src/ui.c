@@ -12,6 +12,13 @@ ui* ui_init(buffer* b){
     //
     // init ncurses
     initscr();
+    if(has_colors() == FALSE)
+    {   endwin();
+        printf("Your terminal does not support color\n");
+        exit(1);
+    }
+    start_color();          /* Start color          */
+    init_pair(1, COLOR_BLUE, COLOR_GREEN);
     //raw();
     cbreak();
     keypad(stdscr, TRUE);
@@ -54,12 +61,28 @@ void ui_update(ui* u){
         rope_write_cstr(lit->str, cstr);
         mvprintw(i, 0, cstr);
         mvprintw(i, 25, "   |%d", lit->id);
+
+        // color peer cursors (for now this overwrites current char at position but w/e)
+        for(int j=0; j<MAX_CURSOR_NUM; j++)
+        {
+            if(u->buf->peer_curss[j] && u->buf->peer_curss[j]->on_screen)
+            {
+                if(lit == u->buf->peer_curss[j]->own_line)
+                {
+                    attron(COLOR_PAIR(1));
+                    mvprintw(i, u->buf->peer_curss[j]->pos, " ");
+                    attroff(COLOR_PAIR(1));
+                }
+            }
+        }
+
         if(lit->next) lit = lit->next;
         else break;
     }
 
     mvprintw(49, 0, "%d %d\n", u->buf->first->id, u->buf->last->id);
     mvprintw(50, 0, "%d %d\n", u->buf->top->id, u->buf->bottom->id);
+
     move(ypos, xpos);
     refresh();
 }

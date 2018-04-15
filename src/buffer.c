@@ -231,7 +231,8 @@ buffer* buffer_new(int id, int ver, int h, int w, int ui){
         pp = b->bottom = line_new(b->line_id_cnt++, pp, NULL);
     }
 
-    b->own_curs = cursor_new(0, b, b->first, 0, 1);
+    //b->own_curs = cursor_new(0, b, b->first, 0, 1);
+    bcursor_new(b, 0, 0, 0);
     for(int i=0; i<MAX_CURSOR_NUM; i++){
         b->peer_curss[i] = NULL;
     }
@@ -267,7 +268,8 @@ buffer* buffer_from_file(char* fname, int id, int h, int w, int ui){
         pp = b->bottom = line_new(b->line_id_cnt++, pp, NULL);
     }
 
-    b->own_curs = cursor_new(0, b, b->first, 0, 1);
+    //b->own_curs = cursor_new(0, b, b->first, 0, 1);
+    bcursor_new(b, 0, 0, 0);
     for(int i=0; i<MAX_CURSOR_NUM; i++){
         b->peer_curss[i] = NULL;
     }
@@ -389,7 +391,10 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos){
     //insert into peer curss
     for(int i=0; i<MAX_CURSOR_NUM; i++){
         if(!b->peer_curss[i])
+        {
             b->peer_curss[i] = c;
+            break;
+        }
     }
 
     return UPDATE;
@@ -622,7 +627,7 @@ buffer* buffer_deserialize(char* serd, int size){
     }
 
     b->u = ui_init(b);
-    //ui_update(b->u);
+    ui_update(b->u);
 
     return b;
 }
