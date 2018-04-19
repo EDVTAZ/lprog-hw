@@ -9,8 +9,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include <msgpack.h>
-
+#include <parson.h>
 
 BRES buffer_scroll(buffer* b, CMOVE_DIR dir){
     // TODO adjust what cursors are on screen
@@ -343,7 +342,7 @@ void buffer_free(buffer* b){
         cursor_free(b->peer_curss[i]);
     }
 
-    line* lit;
+    line* lit = b->first;
     line* litnext;
     while(lit)
     {
@@ -500,8 +499,94 @@ BRES bcursor_del(buffer* b, int id){
 
 #define UNPACKED_BUFFER_SIZE 1024
 
-buffer* buffer_deserialize(char* serd, int size, int u){
+buffer* buffer_deserialize(char* serd, int u){
     
+    JSON_Value *root_value = json_parse_string(serd);
+    JSON_Object *root_object = json_value_get_object(root_value);
+
+    buffer* b = malloc(sizeof(buffer));
+
+    //// buffer params
+    int first, last, top, bottom;
+
+    b->id = (int)json_object_get_number(root_object, "id");
+    b->ver = (int)json_object_get_number(root_object, "ver");
+    b->num_lines = (int)json_object_get_number(root_object, "num_lines");
+    b->height = (int)json_object_get_number(root_object, "height");
+    b->width = (int)json_object_get_number(root_object, "width");
+    first = (int)json_object_get_number(root_object, "first");
+    last = (int)json_object_get_number(root_object, "last");
+    top = (int)json_object_get_number(root_object, "top");
+    bottom = (int)json_object_get_number(root_object, "bottom");
+
+    //// lines
+
+    // get first line
+    snprintf(b->sp, SP_SIZE, "lines.%d.next", first);
+    int p, n = (int)json_object_get_number(root_object, b->sp);
+    b->first = line_new(first, NULL, NULL);
+
+    // set string value of first line
+    snprintf(b->sp, SP_SIZE, "lines.%d.str", first);
+    rope_insert(b->first->str, 0, json_object_dotget_string(root_object, b->sp));
+
+    // create next line and set string value
+    line* lit = line_new(n, b->first, NULL);
+    snprintf(b->sp, SP_SIZE, "lines.%d.str", lit->id);
+    rope_insert(lit->str, 0, json_object_dotget_string(root_object, b->sp));
+
+    // get next line path to scratchpad
+    snprintf(b->sp, SP_SIZE, "lines.%d.next", lit->id);
+    while( json_object_dothas_value(root_object, b->sp) )
+    {
+        // create next line
+        n = json_object_dotget_number(root_object, b->sp);
+        lit = line_new(n, lit, NULL);
+
+        // set string value of next line
+        snprintf(b->sp, SP_SIZE, "lines.%d.str", lit->id);
+        rope_insert(lit->str, 0, json_object_dotget_string(root_object, b->sp));
+
+        // get next line path to scratchpad
+        snprintf(b->sp, SP_SIZE, "lines.%d.next", lit->id);
+    }
+    // set top/bottom, first/last in buffer
+    b->last = lit;
+    b->top = bline_find(b, top);
+    b->bottom = bline_find(b, bottom);
+
+    //// cursors
+    // own cursor
+    int id = (int)json_object_dotget_number(root_object, "own_cursor.id");
+    int lid = (int)json_object_dotget_number(root_object, "own_cursor.own_line");
+    int pos = (int)json_object_dotget_number(root_object, "own_cursor.pos");
+    bcursor_new(b, id, lid, pos);
+    // peer cursors
+    for(int i=0; i<MAX_CURSOR_NUM; i++)
+        b->peer_curss[i] = NULL;
+    for(int i=0; i<MAX_CURSOR_NUM; i++)
+    {
+        snprintf(b->sp, SP_SIZE, "peer_curss.%d", i);
+        if( json_object_dothas_value(root_object, b->sp) )
+        {
+            id = i;
+            snprintf(b->sp, SP_SIZE, "peer_curss.%d.own_line", i);
+            lid = (int)json_object_dotget_number(root_object, b->sp);
+            snprintf(b->sp, SP_SIZE, "peer_curss.%d.pos", i);
+            pos = (int)json_object_dotget_number(root_object, b->sp);
+            bcursor_new(b, id, lid, pos);
+        }
+    }
+
+    if(u)
+    {
+        b->u = ui_init(b);
+        ui_update(b->u);
+    }
+    else b->u = NULL;
+
+    return b;
+    /*
     buffer* b = malloc(sizeof(buffer));
     typedef enum {START, LINES, CURSORS} PHASE;
     PHASE phase = START;
@@ -509,7 +594,6 @@ buffer* buffer_deserialize(char* serd, int size, int u){
     line* ll = NULL;
     int first, last, top, bottom;
 
-    /* buf is allocated by client. */
     msgpack_unpacked result;
     size_t off = 0;
     msgpack_unpack_return ret;
@@ -520,15 +604,11 @@ buffer* buffer_deserialize(char* serd, int size, int u){
     while (ret == MSGPACK_UNPACK_SUCCESS) {
         msgpack_object obj = result.data;
 
-        /* Use obj. */
         printf("Object no %d:\n", ++i);
         msgpack_object_print(stdout, obj);
         printf("\n");
         //msgpack_object_print_buffer(unpacked_buffer, UNPACKED_BUFFER_SIZE, obj);
         printf("%s\n", unpacked_buffer);
-        /* If you want to allocate something on the zone, you can use zone. */
-        /* msgpack_zone* zone = result.zone; */
-        /* The lifetime of the obj and the zone,  */
         // =============== recover data ====================
         if(phase == CURSORS)
         {
@@ -634,10 +714,103 @@ buffer* buffer_deserialize(char* serd, int size, int u){
     else b->u = NULL;
 
     return b;
+    */
 }
 
-int buffer_serialize(buffer* b, char** serd){
-    /* creates buffer and serializer instance. */
+char* buffer_serialize(buffer* b){
+
+//    JSON_Value *root_value = json_value_init_object();
+//    JSON_Object *root_object = json_value_get_object(root_value);
+//    char *serialized_string = NULL;
+//    json_object_set_string(root_object, "name", "John Smith");
+//    json_object_set_number(root_object, "age", 25);
+//    json_object_dotset_string(root_object, "address.city", "Cupertino");
+//    json_object_dotset_value(root_object, "contact.emails", json_parse_string("[\"email@example.com\",\"email2@example.com\"]"));
+//    serialized_string = json_serialize_to_string_pretty(root_value);
+//    puts(serialized_string);
+//    json_free_serialized_string(serialized_string);
+//    json_value_free(root_value);
+
+    JSON_Value *root_value = json_value_init_object();
+    JSON_Object *root_object = json_value_get_object(root_value);
+    char *serialized_string = NULL;
+    //// buffer attrs
+    // buffer id
+    json_object_set_number(root_object, "id", b->id);
+    // buffer version counter
+    json_object_set_number(root_object, "ver", b->ver);
+    // buffer number of lines
+    json_object_set_number(root_object, "num_lines", b->num_lines);
+    // buffer line_id_cnt
+    json_object_set_number(root_object, "line_id_cnt", b->line_id_cnt);
+    // buffer height
+    json_object_set_number(root_object, "height", b->height);
+    // buffer width
+    json_object_set_number(root_object, "width", b->width);
+    // buffer first line id
+    json_object_set_number(root_object, "first", b->first->id);
+    // buffer last line id
+    json_object_set_number(root_object, "last", b->last->id);
+    // buffer top line id
+    json_object_set_number(root_object, "top", b->top->id);
+    // buffer bottom line id
+    json_object_set_number(root_object, "bottom", b->bottom->id);
+    //// lines
+    //JSON_Value *lines_jval = NULL, *val_parent;
+    //JSON_Object *obj = NULL;
+    line* lit = b->first;
+    char path[2048];
+    while(lit){
+        int slen = rope_write_cstr(lit->str, b->sp);
+
+        if(lit->next)
+        {
+            snprintf(path, 2048, "lines.%d.next", lit->id);
+            json_object_dotset_number(root_object, path, lit->next->id);
+        }
+        if(lit->prev)
+        {
+            snprintf(path, 2048, "lines.%d.prev", lit->id);
+            json_object_dotset_number(root_object, path, lit->prev->id);
+        }
+        snprintf(path, 2048, "lines.%d.str", lit->id);
+        json_object_dotset_string(root_object, path, b->sp);
+
+        lit = lit->next;
+    }
+    //// cursors
+    cursor* c = b->own_curs;
+    // id
+    json_object_dotset_number(root_object, "own_cursor.id", c->id);
+    // own_line
+    json_object_dotset_number(root_object, "own_cursor.own_line", c->own_line->id);
+    // position
+    json_object_dotset_number(root_object, "own_cursor.pos", c->pos);
+    // on_screen
+    json_object_dotset_number(root_object, "own_cursor.on_screen", c->on_screen);
+
+    for(int i=0; i<MAX_CURSOR_NUM; i++){
+        if(c = b->peer_curss[i]){
+            // own_line
+            snprintf(path, 2048, "peer_curss.%d.own_line", c->id);
+            json_object_dotset_number(root_object, path, c->own_line->id);
+            // position
+            snprintf(path, 2048, "peer_curss.%d.pos", c->id);
+            json_object_dotset_number(root_object, path, c->pos);
+            // on_screen
+            snprintf(path, 2048, "peer_curss.%d.on_screen", c->id);
+            json_object_dotset_number(root_object, path, c->on_screen);
+        }
+    }
+
+    serialized_string = json_serialize_to_string(root_value);
+    //puts(serialized_string);
+    //printf("%d", sizeof(serialized_string));
+    //json_free_serialized_string(serialized_string);
+    json_value_free(root_value);
+    return serialized_string;
+    
+    /*
     msgpack_sbuffer* buffer = msgpack_sbuffer_new();
     msgpack_packer* pk = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
@@ -649,7 +822,6 @@ int buffer_serialize(buffer* b, char** serd){
     // length of array
     int arlen = 10;
 
-    /* serializes ["Hello", "MessagePack"]. */
     msgpack_pack_array(pk, arlen);
 
     // 1
@@ -714,9 +886,9 @@ int buffer_serialize(buffer* b, char** serd){
     memcpy(*serd, buffer->data, buffer->size);
     int siz = buffer->size;
 
-    /* cleaning */
     msgpack_sbuffer_free(buffer);
     msgpack_packer_free(pk);
 
     return siz;
+    */
 }

@@ -13,6 +13,7 @@ typedef struct buffer buffer;
 #define MAX_CURSOR_NUM 20
 #endif
 
+#define SP_SIZE 2048
 
 // LINE ---------------------------------------------------------------
 
@@ -83,7 +84,7 @@ CMOVE_RES cursor_del(cursor* c);
 struct buffer{
     
     int id;
-    // veranion of the file
+    // version of the file
     int ver;
     int num_lines;
     int line_id_cnt;
@@ -110,7 +111,7 @@ struct buffer{
     struct ui* u;
 
     // scratch pad cstr
-    char sp[160];
+    char sp[SP_SIZE];
 
 };
 
@@ -160,9 +161,9 @@ BRES bcursor_del(buffer* b, int id);
 
 //// serialization for synchronization between server and client
 // serialize
-int buffer_serialize(buffer* b, char** serd);
+char* buffer_serialize(buffer* b);
 
 // deserialize
-buffer* buffer_deserialize(char* serd, int size, int u);
+buffer* buffer_deserialize(char* serd, int u);
 
 #endif

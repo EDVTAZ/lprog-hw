@@ -5,12 +5,12 @@ CFLAGS=-I$(IDIR) -L$(LDIR) -ggdb
 
 ODIR=obj
 
-LIBS=-lncurses -lrope -lmsgpackc
+LIBS=-lncurses -lrope
 
-_DEPS = ui.h buffer.h rope.h
+_DEPS = ui.h buffer.h rope.h parson.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = main.o ui.o buffer.o
+_OBJ = main.o ui.o buffer.o parson.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 

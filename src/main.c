@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include <buffer.h>
-//#include "../include/buffer.h"
 #include <ui.h>
 
 #define HEIGHT 20
@@ -12,10 +11,11 @@
 int main()
 {
 
+
     //buffer* b = buffer_new(0, 0, HEIGHT, WIDTH, 1);
     buffer* b = buffer_from_file("testfile", 0, HEIGHT, WIDTH, 1);
     bcursor_new(b, 1, 0, 0);
-    char** data;
+    char* data;
     int size;
 
     int cid = 0;
@@ -55,13 +55,11 @@ int main()
 
             case KEY_F(7):
 
-                data = malloc(sizeof(char*));
-                size = buffer_serialize(b, data);
+                data = buffer_serialize(b);
 
                 buffer_free(b);
 
-                b = buffer_deserialize(*data, size, 1);
-                free(*data);
+                b = buffer_deserialize(data, 1);
                 free(data);
 
                 break;
