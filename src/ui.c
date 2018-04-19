@@ -47,6 +47,14 @@ void ui_update(ui* u){
     for(int i=0; lit; i++){
 
         mvprintw(i, 50, "%d", lit->id);
+
+        if(lit->on_screen) printw("\t+");
+        else printw("\t-");
+
+        if(lit->where == ABOVE) printw("\tA");
+        else if(lit->where == BELLOW) printw("\tB");
+        else printw("\tS");
+
         if(lit->next) lit = lit->next;
         else break;
     }

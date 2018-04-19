@@ -14,8 +14,10 @@
 void binit_onscreen_info(buffer* b)
 {
     line *lit = b->first;
+    
     if(b->first == b->top) lit->on_screen = 1;
     else lit->on_screen = 0;
+
     if(b->own_curs->own_line == lit) lit->where = SAME;
     else lit->where = ABOVE;
 
@@ -470,6 +472,7 @@ BRES buffer_deletel(buffer* b, line* l){
             bcursor_move(b, b->own_curs->id, UP);
         for(int i=0; i<MAX_CURSOR_NUM; i++)
         {
+            if(!b->peer_curss[i]) continue;
             if(b->peer_curss[i]->own_line == l)
                 bcursor_move(b, b->peer_curss[i]->id, UP);
         }
@@ -573,6 +576,8 @@ BRES bcursor_insert_line(buffer* b, int id){
             buffer_trim(b, ll);
         }
         if(c->own_line == b->first) b->first = c->own_line;
+
+        if(c == b->own_curs) buffer_scroll(b, UP);
         
         if(b->u) ui_update(b->u);
         return UPDATE;
@@ -745,6 +750,8 @@ buffer* buffer_deserialize(char* serd, int u){
             bcursor_new(b, id, lid, pos);
         }
     }
+
+    binit_onscreen_info(b);
 
     if(u)
     {
