@@ -2,7 +2,7 @@
 #include <rope.h>
 #include <ui.h>
 #include <buffer.h>
-//#include "../include/buffer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,34 +11,116 @@
 
 #include <parson.h>
 
-BRES buffer_scroll(buffer* b, CMOVE_DIR dir){
-    // TODO adjust what cursors are on screen
+void binit_onscreen_info(buffer* b)
+{
+    line *lit = b->first;
+    if(b->first == b->top) lit->on_screen = 1;
+    else lit->on_screen = 0;
+    if(b->own_curs->own_line == lit) lit->where = SAME;
+    else lit->where = ABOVE;
+
+    int os = lit->on_screen;
+    CRP rel = lit->where;
+    while(lit = lit->next)
+    {
+        if(os)
+        {
+            lit->on_screen = os;
+            if(lit == b->bottom) os = 0;
+        }
+        else
+        {
+            if(lit == b->top) os = 1;
+            lit->on_screen = os;
+        }
+
+        if(rel == ABOVE && lit == b->own_curs->own_line)
+        {
+            lit->where = SAME;
+            rel = BELLOW;
+        }
+        else lit->where = rel;
+    }
+}
+
+BRES buffer_scroll(buffer* b, CMOVE_DIR dir)
+{
     if(dir == UP){
         if(b->bottom->prev && b->top->prev){
+            b->bottom->on_screen = 0;
             b->bottom = b->bottom->prev;
+
             b->top = b->top->prev;
+            b->top->on_screen = 1;
         } 
     }
     if(dir == DOWN){
         if(b->top->next && b->bottom->next){
+            b->top->on_screen = 0;
             b->top = b->top->next;
+
             b->bottom = b->bottom->next;
+            b->bottom->on_screen = 1;
         } 
     }
 }
 
 // should be used to trim the visible area, when l line was inserted
-BRES buffer_trim(buffer* b, line* l){
-    // TODO 
-     if(b->bottom->prev) b->bottom = b->bottom->prev;
+BRES buffer_trim(buffer* b, line* l)
+{
+    if(!l->on_screen) return FAILED;
+
+    if(l->where == SAME || l->where == BELLOW)
+    {
+        if(b->bottom->prev)
+        {
+            b->bottom->on_screen = 0;
+            b->bottom = b->bottom->prev; 
+        }
+    }
+    if(l->where == ABOVE)
+    {
+        if(b->top->next)
+        {
+            b->top->on_screen = 0;
+            b->top = b->top->next;
+        }
+    }
+
+    if(b->bottom == b->own_curs->own_line) buffer_scroll(b, DOWN);
+    if(b->top == b->own_curs->own_line) buffer_scroll(b, UP);
+    
     return UPDATE;
 }
 
 // after deleting a line, there is space for one more
 BRES buffer_extend(buffer* b, line* l){
-    // TODO
     if(b->bottom->next) b->bottom = b->bottom->next;
     else if(b->top->prev) b->top = b->top->prev;
+    if(l->where == SAME || l->where == BELLOW)
+    {
+        if(b->bottom->next)
+        {
+            b->bottom = b->bottom->next; 
+            b->bottom->on_screen = 1;
+        }
+    }
+    if(l->where == ABOVE)
+    {
+        if(b->top->prev)
+        {
+            b->top = b->top->prev;
+            b->top->on_screen = 1;
+        }
+        else
+        {
+            b->bottom = b->bottom->next; 
+            b->bottom->on_screen = 1;
+        }
+    }
+
+    if(b->bottom == b->own_curs->own_line) buffer_scroll(b, DOWN);
+    if(b->top == b->own_curs->own_line) buffer_scroll(b, UP);
 
     return UPDATE;
 }
@@ -57,6 +139,30 @@ line* line_new(int id, line* prev, line* next){
     if(prev) l->prev->next = l;
     l->next = next;
     if(next) l->next->prev = l;
+
+    if(prev && next)
+    {
+        if(prev->on_screen == next->on_screen) l->on_screen = prev->on_screen;
+        else
+        {
+            // these conditionals are not needed, but i'll leave them here to record the line of thought behind the decision
+            if(prev->on_screen && !next->on_screen) l->on_screen = 0;
+            if(!prev->on_screen && next->on_screen) l->on_screen = 0;
+        }
+
+        if(prev->where == SAME || prev->where == BELLOW) l->where = BELLOW;
+        if(next->where == SAME || next->where == ABOVE) l->where = ABOVE;
+    }
+    else if(prev)
+    {
+        l->on_screen = 0;
+        l->where = BELLOW;
+    }
+    else if(next)
+    {
+        l->on_screen = 0;
+        l->where = ABOVE;
+    }
 
     return l;
 }
@@ -79,15 +185,13 @@ line* line_free(line* l){
 char hstr[2];
 
 // create new cursor wit id, in the line l at pos position
-cursor* cursor_new(int id, buffer* buf, line* l, int pos, int os){
+cursor* cursor_new(int id, buffer* buf, line* l, int pos){
     cursor* c = malloc(sizeof(cursor));
 
     c->id = id;
     c->buf = buf;
     c->own_line = l;
     c->pos = pos;
-
-    c->on_screen = os;
 }
 
 // delete cursor
@@ -153,7 +257,7 @@ CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir){
 }
 
 // insert character at cursor location
-CMOVE_RES cursor_insert(cursor* c, char chr){
+BRES cursor_insert(cursor* c, char chr){
     hstr[0] = chr;
 
     if(rope_char_count(c->own_line->str) >= c->buf->width-1) return FAILED;
@@ -168,12 +272,9 @@ CMOVE_RES cursor_insert(cursor* c, char chr){
     return UPDATE;
 }
 
-// insert line at cursor position with id
-//CMOVE_RES cursor_insert_line(cursor* c, int id)
-
 // delete character at cursor location (deleting endline not handled here)
-CMOVE_RES cursor_del(cursor* c){
-    if(c->pos == 0) return -1;
+BRES cursor_del(cursor* c){
+    if(c->pos == 0) return FAILED;
 
 //    if( rope_char_count(c->own_line->str) != 1 && rope_char_count(c->own_line->str) % c->buf->width == 1 ){
 //        buffer_scroll(c->buf, UP);
@@ -182,7 +283,7 @@ CMOVE_RES cursor_del(cursor* c){
 
     rope_del(c->own_line->str, c->pos-1, 1);
     c->pos--;
-    return 0;
+    return UPDATE;
 }
 
 
@@ -237,6 +338,7 @@ buffer* buffer_new(int id, int ver, int h, int w, int ui){
         b->peer_curss[i] = NULL;
     }
 
+    binit_onscreen_info(b);
     if(ui) b->u = ui_init(b);
     else b->u = NULL;
 
@@ -274,6 +376,8 @@ buffer* buffer_from_file(char* fname, int id, int h, int w, int ui){
         b->peer_curss[i] = NULL;
     }
     
+    binit_onscreen_info(b);
+
     int c;
     int ret, upcnt=0;
     while(ret = read(fd, &c, 1))
@@ -356,20 +460,21 @@ void buffer_free(buffer* b){
 
 }
 
-// probly don't need this
-//// insert line containing cstr after line with id, with the id new_id
-//// cstr shall not contain newline characters and be null terminated
-//// if new_id is -1 a new id will be automatically generated
-//BRES buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id){
-//    // TODO
-//    return UPDATE;
-//}
-
 // delete line
 BRES buffer_deletel(buffer* b, line* l){
-    // TODO handle other cursors
-
     buffer_extend(b, l);
+
+    if(l->prev)
+    {
+        if(b->own_curs->own_line == l)
+            bcursor_move(b, b->own_curs->id, UP);
+        for(int i=0; i<MAX_CURSOR_NUM; i++)
+        {
+            if(b->peer_curss[i]->own_line == l)
+                bcursor_move(b, b->peer_curss[i]->id, UP);
+        }
+    }
+
     line_free(l);
 
     return UPDATE;
@@ -380,8 +485,7 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos){
 
     // find line
     line* l = bline_find(b, lid);
-    // TODO calculate on screen
-    cursor* c = cursor_new(id, b, l, pos, 1);
+    cursor* c = cursor_new(id, b, l, pos);
 
     if(id == 0)
     {
@@ -409,8 +513,21 @@ BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir){
     if(res == aUP && b->top == c->own_line && c == b->own_curs) buffer_scroll(b, UP);
     if(res == aDOWN && b->bottom== c->own_line && c == b->own_curs) buffer_scroll(b, DOWN);
 
+    if(c == b->own_curs)
+    {
+        if(res == aUP)
+        {
+            c->own_line->next->where = BELLOW;
+            c->own_line->where = SAME;
+        }
+        if(res == aDOWN)
+        {
+            c->own_line->prev->where = ABOVE;
+            c->own_line->where = SAME;
+        }
+    }
+
     if(b->u) ui_update(b->u);
-    // TODO
     return UPDATE;
 }
 
@@ -418,10 +535,21 @@ BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir){
 BRES bcursor_insert(buffer* b, int id, char chr){
     
     cursor* c = bcursor_find(b, id);
-    cursor_insert(c, chr);
+    BRES res = cursor_insert(c, chr);
+
+    if(res == UPDATE || res == SUCCESS)
+    {
+        if(c != b->own_curs && c->own_line == b->own_curs->own_line && c->pos < b->own_curs->pos)
+            b->own_curs->pos++;
+        for(int i=0; i<MAX_CURSOR_NUM; i++)
+        {
+            if(!b->peer_curss[i]) continue;
+            if(c != b->peer_curss[i] && c->own_line == b->peer_curss[i]->own_line && c->pos < b->peer_curss[i]->pos)
+                b->peer_curss[i]->pos++;
+        }
+    }
 
     if(b->u) ui_update(b->u);
-    // TODO correct positions of cursors with greater position than ours
     return UPDATE;
 }
 
@@ -453,8 +581,23 @@ BRES bcursor_insert_line(buffer* b, int id){
     line* ll = line_new(b->line_id_cnt++, c->own_line, c->own_line->next);
     if(c->own_line == b->last) b->last = ll;
 
-    if(c->pos != rope_char_count(c->own_line->str)){
-        // TODO move other cursors with us
+    if(c->pos != rope_char_count(c->own_line->str))
+    {
+        if(c != b->own_curs && c->own_line == b->own_curs->own_line && c->pos < b->own_curs->pos)
+        {
+            b->own_curs->pos -= c->pos;
+            bcursor_move(b, b->own_curs->id, DOWN);
+        }
+        for(int i=0; i<MAX_CURSOR_NUM; i++)
+        {
+            if(!b->peer_curss[i]) continue;
+            if(c != b->peer_curss[i] && c->own_line == b->peer_curss[i]->own_line && c->pos < b->peer_curss[i]->pos)
+            {
+                b->peer_curss[i]->pos -= c->pos;
+                bcursor_move(b, b->peer_curss[i]->id, DOWN);
+            }
+        }
+
         rope_free(ll->str);
         ll->str = rope_copy(ll->prev->str);
         rope_del(ll->prev->str, c->pos, rope_char_count(ll->str)-c->pos);
@@ -481,11 +624,36 @@ BRES bcursor_insert_line(buffer* b, int id){
 BRES bcursor_del(buffer* b, int id){
     
     cursor* c = bcursor_find(b, id);
-    if(c->pos > 0) cursor_del(c);
+    if(c->pos > 0)
+    {
+        BRES res = cursor_del(c);
+        if(res == UPDATE || res == SUCCESS)
+        {
+            if(c != b->own_curs && c->own_line == b->own_curs->own_line && c->pos < b->own_curs->pos)
+                b->own_curs->pos++;
+            for(int i=0; i<MAX_CURSOR_NUM; i++)
+            {
+                if(!b->peer_curss[i]) continue;
+                if(c != b->peer_curss[i] && c->own_line == b->peer_curss[i]->own_line && c->pos < b->peer_curss[i]->pos)
+                    b->peer_curss[i]->pos++;
+            }
+        }
+    }
     else{
         if(c->own_line == b->first) return FAILED;
         b->num_lines--;
+
+        if(c != b->own_curs && c->own_line == b->own_curs->own_line)
+            bcursor_move(b, b->own_curs->id, UP);
+        for(int i=0; i<MAX_CURSOR_NUM; i++)
+        {
+            if(!b->peer_curss[i]) continue;
+            if(c != b->peer_curss[i] && c->own_line == b->peer_curss[i]->own_line)
+                bcursor_move(b, b->peer_curss[i]->id, UP);
+        }
+
         bcursor_move(b, id, LEFT);
+
         if(c->own_line->next == b->last) b->last = c->own_line;
         if( rope_write_cstr(c->own_line->next->str, b->sp)>1 ){
             rope_insert(c->own_line->str, rope_char_count(c->own_line->str), b->sp);
@@ -494,7 +662,6 @@ BRES bcursor_del(buffer* b, int id){
     }
 
     if(b->u) ui_update(b->u);
-    // TODO correct positions of cursors with greater position than ours
     return UPDATE;
 }
 
@@ -647,8 +814,6 @@ char* buffer_serialize(buffer* b){
     json_object_dotset_number(root_object, "own_cursor.own_line", c->own_line->id);
     // position
     json_object_dotset_number(root_object, "own_cursor.pos", c->pos);
-    // on_screen
-    json_object_dotset_number(root_object, "own_cursor.on_screen", c->on_screen);
 
     for(int i=0; i<MAX_CURSOR_NUM; i++){
         if(c = b->peer_curss[i]){
@@ -658,9 +823,6 @@ char* buffer_serialize(buffer* b){
             // position
             snprintf(path, 2048, "peer_curss.%d.pos", c->id);
             json_object_dotset_number(root_object, path, c->pos);
-            // on_screen
-            snprintf(path, 2048, "peer_curss.%d.on_screen", c->id);
-            json_object_dotset_number(root_object, path, c->on_screen);
         }
     }
 

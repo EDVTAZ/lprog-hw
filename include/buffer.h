@@ -16,6 +16,14 @@ typedef struct buffer buffer;
 #define SP_SIZE 2048
 
 // LINE ---------------------------------------------------------------
+typedef enum crp {ABOVE, BELLOW, SAME} CRP;
+
+// result ofbuffer operation
+// FAILED: operation failed
+// UPDATE: operation successful, UI update needed
+// SUCCESS: operation successful, no UI updgrade needed
+typedef enum bres{FAILED, UPDATE, SUCCESS} BRES;
+
 
 struct line{
     
@@ -26,6 +34,11 @@ struct line{
     // neighbouring lines
     struct line* prev;
     struct line* next;
+
+    // on screen info
+    int on_screen;
+    CRP where;
+    
 };
 
 // create new line with id and insert it into the chain between prev and next
@@ -46,13 +59,11 @@ struct cursor{
     line* own_line;
     // the x index of the cursor
     int pos;
-    // 1 if the cursor is visible on the screen, 0 otherwise
-    int on_screen;
 
 };
 
 // create new cursor wit id, in the line with lid at pos position
-cursor* cursor_new(int id, buffer* buf, line* l, int pos, int os);
+cursor* cursor_new(int id, buffer* buf, line* l, int pos);
 
 // delete cursor
 void cursor_free(cursor* c);
@@ -70,13 +81,10 @@ typedef enum cmove_dir{UP, DOWN, LEFT, RIGHT} CMOVE_DIR;
 CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir);
 
 // isnert character at cursor location
-CMOVE_RES cursor_insert(cursor* c, char chr);
-
-// insert line at cursor position with id
-CMOVE_RES cursor_insert_line(cursor* c, int id);
+BRES cursor_insert(cursor* c, char chr);
 
 // delete character at cursor location
-CMOVE_RES cursor_del(cursor* c);
+BRES cursor_del(cursor* c);
 
 
 // BUFFER ---------------------------------------------------------------
@@ -127,12 +135,6 @@ int buffer_save(char* fname, buffer* b);
 
 // deletes buffer
 void buffer_free(buffer* b);
-
-// result ofbuffer operation
-// FAILED: operation failed
-// UPDATE: operation successful, UI update needed
-// SUCCESS: operation successful, no UI updgrade needed
-typedef enum bres{FAILED, UPDATE, SUCCESS} BRES;
 
 // insert line containing cstr after line with id, with the id new_id
 // cstr shall not contain newline characters and be null terminated

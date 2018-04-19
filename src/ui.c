@@ -65,7 +65,7 @@ void ui_update(ui* u){
         // color peer cursors (for now this overwrites current char at position but w/e)
         for(int j=0; j<MAX_CURSOR_NUM; j++)
         {
-            if(u->buf->peer_curss[j] && u->buf->peer_curss[j]->on_screen)
+            if(u->buf->peer_curss[j] && u->buf->peer_curss[j]->own_line->on_screen)
             {
                 if(lit == u->buf->peer_curss[j]->own_line)
                 {
