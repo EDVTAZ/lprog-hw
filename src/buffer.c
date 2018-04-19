@@ -197,6 +197,7 @@ line* bline_find(buffer* b, int id)
         if(id == lit->id) return lit;
 
         if(lit != b->first) lit = lit->prev;
+        else break;
     }
 
     return NULL;
@@ -497,8 +498,6 @@ BRES bcursor_del(buffer* b, int id){
     return UPDATE;
 }
 
-#define UNPACKED_BUFFER_SIZE 1024
-
 buffer* buffer_deserialize(char* serd, int u){
     
     JSON_Value *root_value = json_parse_string(serd);
@@ -512,6 +511,7 @@ buffer* buffer_deserialize(char* serd, int u){
     b->id = (int)json_object_get_number(root_object, "id");
     b->ver = (int)json_object_get_number(root_object, "ver");
     b->num_lines = (int)json_object_get_number(root_object, "num_lines");
+    b->line_id_cnt = (int)json_object_get_number(root_object, "line_id_cnt");
     b->height = (int)json_object_get_number(root_object, "height");
     b->width = (int)json_object_get_number(root_object, "width");
     first = (int)json_object_get_number(root_object, "first");
@@ -522,8 +522,6 @@ buffer* buffer_deserialize(char* serd, int u){
     //// lines
 
     // get first line
-    snprintf(b->sp, SP_SIZE, "lines.%d.next", first);
-    int p, n = (int)json_object_get_number(root_object, b->sp);
     b->first = line_new(first, NULL, NULL);
 
     // set string value of first line
@@ -531,6 +529,8 @@ buffer* buffer_deserialize(char* serd, int u){
     rope_insert(b->first->str, 0, json_object_dotget_string(root_object, b->sp));
 
     // create next line and set string value
+    snprintf(b->sp, SP_SIZE, "lines.%d.next", first);
+    int n = (int)json_object_dotget_number(root_object, b->sp);
     line* lit = line_new(n, b->first, NULL);
     snprintf(b->sp, SP_SIZE, "lines.%d.str", lit->id);
     rope_insert(lit->str, 0, json_object_dotget_string(root_object, b->sp));
@@ -550,10 +550,11 @@ buffer* buffer_deserialize(char* serd, int u){
         // get next line path to scratchpad
         snprintf(b->sp, SP_SIZE, "lines.%d.next", lit->id);
     }
-    // set top/bottom, first/last in buffer
+    // set top/bottom, first/last in buffer ORDER IS IMPORTANT
     b->last = lit;
-    b->top = bline_find(b, top);
     b->bottom = bline_find(b, bottom);
+    b->last = bline_find(b, last);
+    b->top = bline_find(b, top);
 
     //// cursors
     // own cursor
