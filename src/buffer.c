@@ -635,12 +635,12 @@ BRES bcursor_del(buffer* b, int id){
         if(res == UPDATE || res == SUCCESS)
         {
             if(c != b->own_curs && c->own_line == b->own_curs->own_line && c->pos < b->own_curs->pos)
-                b->own_curs->pos++;
+                b->own_curs->pos--;
             for(int i=0; i<MAX_CURSOR_NUM; i++)
             {
                 if(!b->peer_curss[i]) continue;
                 if(c != b->peer_curss[i] && c->own_line == b->peer_curss[i]->own_line && c->pos < b->peer_curss[i]->pos)
-                    b->peer_curss[i]->pos++;
+                    b->peer_curss[i]->pos--;
             }
         }
     }
