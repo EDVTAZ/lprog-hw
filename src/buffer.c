@@ -417,11 +417,10 @@ int buffer_save(char* fname, buffer* b){
     }
 
     line* lit = b->first;
-    char buf[b->width+1];
     while(lit)
     {
-        int len = rope_write_cstr(lit->str, buf);
-        write(fd, buf, len-1);
+        int len = rope_write_cstr(lit->str, b->sp);
+        write(fd, b->sp, len-1);
         write(fd, "\n", 1);
 
         if(lit != b->last)
@@ -464,7 +463,7 @@ void buffer_free(buffer* b){
 
 // delete line
 BRES buffer_deletel(buffer* b, line* l){
-    buffer_extend(b, l);
+    if(l->on_screen) buffer_extend(b, l);
 
     if(l->prev)
     {
@@ -489,6 +488,7 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos){
     // find line
     line* l = bline_find(b, lid);
     cursor* c = cursor_new(id, b, l, pos);
+    int seen = l->on_screen;
 
     if(id == 0)
     {
@@ -504,6 +504,7 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos){
         }
     }
 
+    if(b->u && seen) ui_update(b->u);
     return UPDATE;
 }
 
@@ -512,12 +513,16 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos){
 BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir){
 
     cursor* c = bcursor_find(b, id);
+
+    int seen = c->own_line->on_screen;
     CMOVE_RES res = cursor_move(c, dir);
-    if(res == aUP && b->top == c->own_line && c == b->own_curs) buffer_scroll(b, UP);
-    if(res == aDOWN && b->bottom== c->own_line && c == b->own_curs) buffer_scroll(b, DOWN);
+    if(c->own_line->on_screen) seen = 1;
 
     if(c == b->own_curs)
     {
+        if(res == aUP && b->top == c->own_line) buffer_scroll(b, UP);
+        if(res == aDOWN && b->bottom== c->own_line) buffer_scroll(b, DOWN);
+
         if(res == aUP)
         {
             c->own_line->next->where = BELLOW;
@@ -530,7 +535,7 @@ BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir){
         }
     }
 
-    if(b->u) ui_update(b->u);
+    if(b->u && seen) ui_update(b->u);
     return UPDATE;
 }
 
@@ -569,17 +574,14 @@ BRES bcursor_insert_line(buffer* b, int id){
         line* ll = line_new(b->line_id_cnt++, c->own_line->prev, c->own_line);
         if(c->own_line == b->first) b->first = ll;
 
-        if(c->own_line == b->top){
-            buffer_scroll(b, UP);
-        }
-        else {
-            buffer_trim(b, ll);
-        }
-        if(c->own_line == b->first) b->first = c->own_line;
+            if(ll->on_screen)
+            {
+                buffer_trim(b, ll);
+            }
 
-        if(c == b->own_curs) buffer_scroll(b, UP);
+            if(c == b->own_curs && c->own_line->next != b->bottom) buffer_scroll(b, UP);
         
-        if(b->u) ui_update(b->u);
+        if(b->u && ll->on_screen) ui_update(b->u);
         return UPDATE;
     }
 
@@ -612,16 +614,16 @@ BRES bcursor_insert_line(buffer* b, int id){
 
     c->pos = 0;
 
-    if(c->own_line == b->bottom){
+    if(ll->on_screen) buffer_trim(b, ll);
+    if(c == b->own_curs && c->own_line == b->bottom){
         buffer_scroll(b, DOWN);
     }
-    else buffer_trim(b, ll);
-    if(c->own_line == b->last) b->last = c->own_line;
+    if(c->own_line == b->last) b->last = ll;
 
     //c->own_line = c->own_line->next;
     bcursor_move(b, id, DOWN);
 
-    if(b->u) ui_update(b->u);
+    if(b->u && ll->on_screen) ui_update(b->u);
     return UPDATE;
 }
 
@@ -629,6 +631,7 @@ BRES bcursor_insert_line(buffer* b, int id){
 BRES bcursor_del(buffer* b, int id){
     
     cursor* c = bcursor_find(b, id);
+    int seen = c->own_line->on_screen;
     if(c->pos > 0)
     {
         BRES res = cursor_del(c);
@@ -666,7 +669,7 @@ BRES bcursor_del(buffer* b, int id){
         buffer_deletel(b, c->own_line->next);
     }
 
-    if(b->u) ui_update(b->u);
+    if(b->u && (seen || c->own_line->on_screen)) ui_update(b->u);
     return UPDATE;
 }
 
