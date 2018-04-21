@@ -78,7 +78,8 @@ void ui_update(ui* u){
                 if(lit == u->buf->peer_curss[j]->own_line)
                 {
                     attron(COLOR_PAIR(1));
-                    mvprintw(i, u->buf->peer_curss[j]->pos, " ");
+                    char cc = mvinch(i, u->buf->peer_curss[j]->pos) & A_CHARTEXT;
+                    mvprintw(i, u->buf->peer_curss[j]->pos, "%c", cc);
                     attroff(COLOR_PAIR(1));
                 }
             }

@@ -590,6 +590,11 @@ BRES bcursor_insert_line(buffer* b, int id){
 
     if(c->pos != rope_char_count(c->own_line->str))
     {
+        rope_free(ll->str);
+        ll->str = rope_copy(ll->prev->str);
+        rope_del(ll->prev->str, c->pos, rope_char_count(ll->str)-c->pos);
+        rope_del(ll->str, 0, c->pos);
+        
         if(c != b->own_curs && c->own_line == b->own_curs->own_line && c->pos < b->own_curs->pos)
         {
             b->own_curs->pos -= c->pos;
@@ -605,11 +610,6 @@ BRES bcursor_insert_line(buffer* b, int id){
             }
         }
 
-        rope_free(ll->str);
-        ll->str = rope_copy(ll->prev->str);
-        rope_del(ll->prev->str, c->pos, rope_char_count(ll->str)-c->pos);
-        rope_del(ll->str, 0, c->pos);
-        
     }
 
     c->pos = 0;
@@ -618,7 +618,6 @@ BRES bcursor_insert_line(buffer* b, int id){
     if(c == b->own_curs && c->own_line == b->bottom){
         buffer_scroll(b, DOWN);
     }
-    if(c->own_line == b->last) b->last = ll;
 
     //c->own_line = c->own_line->next;
     bcursor_move(b, id, DOWN);
@@ -651,21 +650,32 @@ BRES bcursor_del(buffer* b, int id){
         if(c->own_line == b->first) return FAILED;
         b->num_lines--;
 
-        if(c != b->own_curs && c->own_line == b->own_curs->own_line)
-            bcursor_move(b, b->own_curs->id, UP);
-        for(int i=0; i<MAX_CURSOR_NUM; i++)
-        {
-            if(!b->peer_curss[i]) continue;
-            if(c != b->peer_curss[i] && c->own_line == b->peer_curss[i]->own_line)
-                bcursor_move(b, b->peer_curss[i]->id, UP);
-        }
-
+        // move deleting cursor into prev line
         bcursor_move(b, id, LEFT);
 
+        // join contents of the two lines
         if(c->own_line->next == b->last) b->last = c->own_line;
         if( rope_write_cstr(c->own_line->next->str, b->sp)>1 ){
             rope_insert(c->own_line->str, rope_char_count(c->own_line->str), b->sp);
         }
+
+        // take care of peer cursors
+        if(c != b->own_curs && c->own_line->next == b->own_curs->own_line)
+        {
+            bcursor_move(b, b->own_curs->id, UP);
+            b->own_curs->pos += c->pos;
+        }
+        for(int i=0; i<MAX_CURSOR_NUM; i++)
+        {
+            if(!b->peer_curss[i]) continue;
+            if(c != b->peer_curss[i] && c->own_line->next == b->peer_curss[i]->own_line)
+            {
+                bcursor_move(b, b->peer_curss[i]->id, UP);
+                b->peer_curss[i]->pos += c->pos;
+            }
+        }
+
+        // delete line
         buffer_deletel(b, c->own_line->next);
     }
 
