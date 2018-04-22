@@ -509,7 +509,7 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos){
     return UPDATE;
 }
 
-BRES bcursor_new(buffer* b, int id)
+BRES bcursor_copy_own(buffer* b, int id)
 {
     return bcursor_new(b, id, b->own_curs->own_line->id, b->own_curs->pos);
 }
