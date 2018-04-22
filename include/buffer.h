@@ -147,6 +147,15 @@ BRES buffer_deletel(buffer* b, line* l);
 // create cursor with id in lid line at pos position
 BRES bcursor_new(buffer* b, int id, int lid, int pos);
 
+// copy own_curs into peer_curss with id
+// // USAGE
+// this is for server side
+// when a new peer connects, the server does the following:
+// serializes buffer and sends it to client (this way the own_curs of the server becomes the own_curs of the new peer)
+// now the server needs to create a peer cursor that will correspond to the just connected peer, this is what this function does
+// now the server just needs to send over the id, and line_id and position of the new peer cursor to the rest of the peers
+BRES bcursor_copy_own(buffer* b, int id);
+
 // delete cursor with id
 BRES bcursor_free(buffer* b, int id);
 

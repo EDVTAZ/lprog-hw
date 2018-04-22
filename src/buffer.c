@@ -502,10 +502,16 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos){
             b->peer_curss[i] = c;
             break;
         }
+        if(i == MAX_CURSOR_NUM-1) return FAILED;
     }
 
     if(b->u && seen) ui_update(b->u);
     return UPDATE;
+}
+
+BRES bcursor_new(buffer* b, int id)
+{
+    return bcursor_new(b, id, b->own_curs->own_line->id, b->own_curs->pos);
 }
 
 BRES bcursor_free(buffer* b, int id)
