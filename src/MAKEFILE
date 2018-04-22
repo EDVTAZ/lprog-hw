@@ -1,0 +1,25 @@
+IDIR =../include
+LDIR =../lib
+CC=gcc
+CFLAGS=-I$(IDIR) -L$(LDIR) -ggdb
+
+ODIR=obj/server
+
+LIBS=-lncurses -lrope
+
+_DEPS = ui.h buffer.h rope.h parson.h msg.h
+DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
+
+_OBJ = server.o ui.o buffer.o parson.o msg.o
+OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+
+$(ODIR)/%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+server: $(OBJ)
+	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+
+.PHONY: clean
+
+clean:
+	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ 
