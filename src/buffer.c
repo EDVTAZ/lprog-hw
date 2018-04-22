@@ -508,6 +508,29 @@ BRES bcursor_new(buffer* b, int id, int lid, int pos){
     return UPDATE;
 }
 
+BRES bcursor_free(buffer* b, int id)
+{
+    cursor* c = bcursor_find(b, id);
+
+    // shouldn't ever delete own cursor
+    if(c == b->own_curs) return FAILED;
+
+    int seen = c->own_line->on_screen; 
+    for(int i=0; i<MAX_CURSOR_NUM; i++)
+    {
+        if(c == b->peer_curss[i])
+        {
+            b->peer_curss[i] = NULL;
+            break;
+        }
+    }
+
+    cursor_free(c);
+    if(b->u && seen) ui_update(b->u);
+
+    return UPDATE;
+}
+
 // move cursor
 // check if we have to scroll or show a new cursor on screen
 BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir){
@@ -646,7 +669,8 @@ BRES bcursor_del(buffer* b, int id){
             }
         }
     }
-    else{
+    else
+    {
         if(c->own_line == b->first) return FAILED;
         b->num_lines--;
 
@@ -681,6 +705,16 @@ BRES bcursor_del(buffer* b, int id){
 
     if(b->u && (seen || c->own_line->on_screen)) ui_update(b->u);
     return UPDATE;
+}
+
+ui* buffer_add_ui(buffer* b)
+{
+    // already has ui
+    if(b->u) return b->u;
+
+    b->u = ui_init(b);
+    ui_update(b->u);
+    return b->u;
 }
 
 buffer* buffer_deserialize(char* serd, int u){

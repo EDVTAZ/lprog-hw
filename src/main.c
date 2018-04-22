@@ -31,7 +31,7 @@ int main()
             case KEY_LEFT:
                 bcursor_move(b, cid, LEFT);
                 break;
-                
+
             case KEY_RIGHT:
                 bcursor_move(b, cid, RIGHT);
                 break;

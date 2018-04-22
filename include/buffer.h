@@ -147,6 +147,9 @@ BRES buffer_deletel(buffer* b, line* l);
 // create cursor with id in lid line at pos position
 BRES bcursor_new(buffer* b, int id, int lid, int pos);
 
+// delete cursor with id
+BRES bcursor_free(buffer* b, int id);
+
 // move cursor
 BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir);
 
@@ -160,6 +163,9 @@ BRES bcursor_insert_line(buffer* b, int id);
 
 // delete character at cursor location
 BRES bcursor_del(buffer* b, int id);
+
+// add ui to buffer
+ui* buffer_add_ui(buffer* b);
 
 //// serialization for synchronization between server and client
 // serialize
