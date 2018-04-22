@@ -20,6 +20,29 @@ TODO
 
 The server constantly listens for new connections from clients. When a new client connects it lists the available buffers for it. After the client selects which one it wants to edit, it waits for changes from clients to the buffers. When a change (cursor movement, insertion or deletion) is received, the server stores the change, and broadcasts it to all the other active clients. To avoid inconsistencies, each file has a version number, that is incremented each time a change is made. Every change sent by the client contains the version of the file, and if it isn't correct, the server will reject it.
 
+## Client
+
+* connect to server
+* get list of buffers
+* select buffer
+* get and deserialize buffer
+* start input loop (send input keys to server, and listen for events from server)
+
+## Server
+
+* wait for connections
+* get connection, send list of files
+* get file request
+  * if file doesn't have a server process backing it yet, fork one for it
+  * send tcp connection fd to the correct process, so it can use it [1](https://stackoverflow.com/questions/18936614/can-you-pass-a-tcp-connection-from-one-process-to-the-other) [2](https://sumitomohiko.wordpress.com/2015/09/24/file-descriptor-passing-with-sendmsg2-and-recvmsg2-over-unix-domain-socket/) [3](https://stackoverflow.com/questions/28003921/sending-file-descriptor-by-linux-socket/)
+* in file specific server process
+  * load buffer from file
+  * start input loop
+* in loop
+  * wait for clients (from parent process, through unix socket), if one connects, serialize buffer and send it
+  * wait for inputs from clients (through tcp sockets), broadcast events back to everyone else
+
+
 # Modules
 
 * Data backend: holds the currently edited buffer, takes commands like: load from file, move cursor, insert char, delete char
