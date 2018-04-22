@@ -35,7 +35,7 @@ The server constantly listens for new connections from clients. When a new clien
 * get file request
   * if file doesn't have a server process backing it yet, fork one for it
   * send tcp connection fd to the correct process, so it can use it [1](https://stackoverflow.com/questions/18936614/can-you-pass-a-tcp-connection-from-one-process-to-the-other) [2](https://sumitomohiko.wordpress.com/2015/09/24/file-descriptor-passing-with-sendmsg2-and-recvmsg2-over-unix-domain-socket/) [3](https://stackoverflow.com/questions/28003921/sending-file-descriptor-by-linux-socket/)
-* in file specefic server process
+* in file specific server process
   * load buffer from file
   * start input loop
 * in loop
