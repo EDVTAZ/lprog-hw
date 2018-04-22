@@ -16,7 +16,7 @@ int file_id = 1;
 
 int handle_input(int server_socket)
 {
-    printf("input'\n'");
+    //printf("input'\n'");
     char* c;
     //int amount = recv(STDIN_FILENO, c, 1, 0);
     int amount = read(STDIN_FILENO, c, 1);
@@ -84,17 +84,22 @@ int handle_input(int server_socket)
 
 int handle_msg(int server_socket, message* msg)
 {
+    if(b == NULL) printf("server msg\n");
+    print_msg(msg);
     CMOVE_DIR dir;
+    message* delmsg = msg;
     switch(msg->type)
     {
-        case OK:
+        case MSG_OK:
+            if(b != NULL) break;
             msg = create_msg(FILE_REQUEST, user_id, file_id, NULL);
             send_msg(server_socket, msg);
             break;
         case FILE_RESPONSE:
             b = buffer_deserialize(msg->payload, 1);
             bcursor_new(b, user_id, 0, 0);
-            delete_msg(msg);
+            b->u = ui_init(b);
+            ui_update(b->u);
             break;
         case INSERT:
             bcursor_insert(b, msg->user_id, msg->payload);
@@ -126,7 +131,7 @@ int handle_msg(int server_socket, message* msg)
             break;
             
     }
-    delete_msg(msg);
+    delete_msg(delmsg);
 }
 
 int main(void)
@@ -161,18 +166,18 @@ int main(void)
     message* msg;
     
     //login to server
-    char username[20];
+    /*char username[20];
     char password[20];
     printf("username: ");
     scanf("%s", &username);
     printf("password: ");
-    scanf("%s", &password);
+    scanf("%s", &password);*/
     
     //login message
-    printf("sending login msg...");
+    printf("sending login msg...\n");
     msg = create_msg(LOGIN, user_id, -1, "asdas");
     send_msg(server_socket, msg);
-    printf("send login msg");
+    printf("send login msg\n");
         
     
     while(1)
@@ -253,7 +258,7 @@ int main()
             case KEY_LEFT:
                 bcursor_move(b, cid, LEFT);
                 break;
-
+                
             case KEY_RIGHT:
                 bcursor_move(b, cid, RIGHT);
                 break;

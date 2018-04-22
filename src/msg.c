@@ -67,11 +67,72 @@ int send_msg(int socket, message* msg)
 
 message* recv_msg(int socket)
 {
-    char* serialized_msg;
+    char serialized_msg[1024];
     //int amount = recv(socket, serialized_msg, 1024, 0);
     int amount = read(socket, serialized_msg, 1024);
     if(amount <= 0)
         return NULL;
     message* msg = deserialize_msg(serialized_msg);
     return msg;
+}
+
+void print_msg(message *msg)
+{
+    printf("MSG:\n");
+    printf("\ttype:\t");
+    switch(msg->type)
+    {
+        case MSG_FAILED:
+            printf("MSG_FAILED\n");
+            break;
+        case MSG_OK:
+             printf("MSG_OK\n");
+            break;
+        case LOGIN:
+             printf("LOGIN\n");
+            break;
+        case REGISTER:
+             printf("REGISTER\n");
+            break;
+        case QUIT:
+             printf("QUIT\n");
+            break;
+        case FILE_REQUEST:
+             printf("FILE_REQUEST\n");
+            break;
+        case FILE_RESPONSE:
+             printf("FILE_RESPONSE\n");
+            break;
+        case FILE_LIST:
+             printf("FILE_LIST\n");
+            break;
+        case DELETE_FILE:
+             printf("DELETE_FILE\n");
+            break;
+        case INSERT:
+             printf("INSERT\n");
+            break;
+        case INSERT_LINE:
+             printf("INSERT_LINE\n");
+            break;
+        case DELETE:
+             printf("DELETE\n");
+            break;
+        case MOVE_CURSOR:
+             printf("MOVE_CURSOR\n");
+            break;
+        case ADD_CURSOR:
+             printf("ADD_CURSOR\n");
+            break;
+        case DELETE_CURSOR:
+             printf("DELETE_CURSOR\n");
+            break;
+        default:
+            printf("-\n");
+            break;
+    }
+    printf("\tuser_id:\t%d\n", msg->user_id);
+    printf("\tfile_id:\t%d\n", msg->file_id);
+    printf("\tpayload:\t%s\n", msg->payload);
+    printf("MSG_END!\n");
 }

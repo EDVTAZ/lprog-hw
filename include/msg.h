@@ -38,5 +38,7 @@ void delete_msg(message *msg);
 
 message* create_msg(MSG_TYPE type, int user_id, int file_id, char* payload);
 
+void print_msg(message *msg);
+
 
 #endif

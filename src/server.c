@@ -42,7 +42,12 @@ buffer* search_file(int file_id)
 int handle_msg(int socket, message* msg)
 {
     if(msg == NULL)
+    {
+        printf("null msg\n");
         return 0;
+    }
+    //print_msg(msg);
+    
     int user_id;
     buffer* buf;
     char* payload; 
@@ -51,14 +56,14 @@ int handle_msg(int socket, message* msg)
     {
         case MSG_FAILED:
             break;
-        case OK:
+        case MSG_OK:
             break;
         case LOGIN:
             printf("login'\n'");
             user_id = handle_login(msg);
             if (user_id)
             {
-                send_msg(socket, create_msg(OK, user_id, -1, NULL));
+                send_msg(socket, create_msg(MSG_OK, user_id, -1, NULL));
             } else
             {
                 send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
@@ -68,7 +73,7 @@ int handle_msg(int socket, message* msg)
             user_id = handle_register(msg);
             if (user_id)
             {
-                send_msg(socket, create_msg(OK, user_id, -1, NULL));
+                send_msg(socket, create_msg(MSG_OK, user_id, -1, NULL));
             } else
             {
                 send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
@@ -78,9 +83,12 @@ int handle_msg(int socket, message* msg)
             close(socket);
             break;
         case FILE_REQUEST:
+            if(b != NULL) break;
             buf = search_file(msg->file_id);
             payload = buffer_serialize(buf);
-            send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->payload));
+            printf("payload: %s\n", payload);
+            send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, payload));
+            print_msg(msg);
             break;
         case FILE_RESPONSE:
             break;
@@ -249,7 +257,7 @@ int main(void)
                 message* msg = recv_msg(sd);
                 if(msg)
                 {
-                    printf("%d", sd);
+                    //printf("client message: %d\n", sd);
                     handle_msg(sd, msg);
                 }
             }
