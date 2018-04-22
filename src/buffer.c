@@ -707,14 +707,14 @@ BRES bcursor_del(buffer* b, int id){
     return UPDATE;
 }
 
-ui* buffer_add_ui(buffer* b)
+void buffer_add_ui(buffer* b)
 {
     // already has ui
-    if(b->u) return b->u;
+    if(b->u) return;
 
     b->u = ui_init(b);
     ui_update(b->u);
-    return b->u;
+    return;
 }
 
 buffer* buffer_deserialize(char* serd, int u){

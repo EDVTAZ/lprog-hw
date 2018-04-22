@@ -165,7 +165,7 @@ BRES bcursor_insert_line(buffer* b, int id);
 BRES bcursor_del(buffer* b, int id);
 
 // add ui to buffer
-ui* buffer_add_ui(buffer* b);
+void buffer_add_ui(buffer* b);
 
 //// serialization for synchronization between server and client
 // serialize
