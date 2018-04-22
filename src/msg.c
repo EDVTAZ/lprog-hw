@@ -67,9 +67,9 @@ int send_msg(int socket, message* msg)
 
 message* recv_msg(int socket)
 {
-    char serialized_msg[1024];
+    char serialized_msg[2048];
     //int amount = recv(socket, serialized_msg, 1024, 0);
-    int amount = read(socket, serialized_msg, 1024);
+    int amount = read(socket, serialized_msg, 2048);
     if(amount <= 0)
         return NULL;
     message* msg = deserialize_msg(serialized_msg);

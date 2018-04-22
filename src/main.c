@@ -11,22 +11,25 @@
 #define PORT 8888
 //asdsad
 buffer* b;
-int user_id = 1;
+int user_id = 0;
 int file_id = 1;
 
 int handle_input(int server_socket)
 {
     //printf("input'\n'");
-    char* c;
+    char c[2];
     //int amount = recv(STDIN_FILENO, c, 1, 0);
     int amount = read(STDIN_FILENO, c, 1);
     if(amount < 1)
         return -1;
 
-    printf("%s\n", c);
+    bcursor_insert(b, user_id, c[0]);
+    //printf("%c\n", c[0]);
     message* msg;
+    //msg = create_msg(INSERT, user_id, file_id, "input");
+    //send_msg(server_socket, msg);
     
-    switch((int)&c){
+    switch((int)c[0]){
         case KEY_LEFT:
             msg = create_msg(MOVE_CURSOR, user_id, file_id, "2");
             send_msg(server_socket, msg);
@@ -76,26 +79,28 @@ int handle_input(int server_socket)
             break;
 
         default:
-            msg = create_msg(INSERT, user_id, file_id, c);
+            msg = create_msg(INSERT, user_id, file_id, "input");
             send_msg(server_socket, msg);
-            bcursor_insert(b, user_id, c);
+            bcursor_insert(b, user_id, c[0]);
     }
 }
 
 int handle_msg(int server_socket, message* msg)
 {
-    if(b == NULL) printf("server msg\n");
-    print_msg(msg);
+    //if(b == NULL) printf("server msg\n");
+    //print_msg(msg);
     CMOVE_DIR dir;
     message* delmsg = msg;
     switch(msg->type)
     {
         case MSG_OK:
-            if(b != NULL) break;
+            //if(b != NULL) break;
+            print_msg(msg);
             msg = create_msg(FILE_REQUEST, user_id, file_id, NULL);
             send_msg(server_socket, msg);
             break;
         case FILE_RESPONSE:
+            print_msg(msg);
             b = buffer_deserialize(msg->payload, 1);
             bcursor_new(b, user_id, 0, 0);
             b->u = ui_init(b);

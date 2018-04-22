@@ -46,7 +46,7 @@ int handle_msg(int socket, message* msg)
         printf("null msg\n");
         return 0;
     }
-    //print_msg(msg);
+    print_msg(msg);
     
     int user_id;
     buffer* buf;
@@ -59,7 +59,7 @@ int handle_msg(int socket, message* msg)
         case MSG_OK:
             break;
         case LOGIN:
-            printf("login'\n'");
+            printf("login\n");
             user_id = handle_login(msg);
             if (user_id)
             {
@@ -83,12 +83,10 @@ int handle_msg(int socket, message* msg)
             close(socket);
             break;
         case FILE_REQUEST:
-            if(b != NULL) break;
             buf = search_file(msg->file_id);
             payload = buffer_serialize(buf);
-            printf("payload: %s\n", payload);
+            //printf("payload: %s\n", payload);
             send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, payload));
-            print_msg(msg);
             break;
         case FILE_RESPONSE:
             break;
@@ -151,7 +149,6 @@ int main(void)
     int amount;
     
     //create buffer
-    //TODO:
     b = buffer_new(0, 0, HEIGHT, WIDTH, 0);
     //b = buffer_from_file("testfile", 0, HEIGHT, WIDTH, 1);
 
@@ -232,7 +229,7 @@ int main(void)
             
             //inform user of socket number - used in send and receive commands
             //printf("New connection , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
-            printf("New connection'\n'");
+            printf("New connection\n");
                 
             //add new socket to array of sockets
             for (i = 0; i < MAX_CLIENTS; i++) 
