@@ -7,13 +7,16 @@
 #include <buffer.h>
 #include <msg.h>
 
+#define KEY_ESC 27
 #define SERV_ADDR "127.0.0.1"
 #define PORT 8888
 #define OWN_CURS_ID 0
-//asdsad
+
 buffer* b;
 int user_id;
 int file_id = 1;
+int file_version = 1;
+int quit = 0;
 
 int handle_input(int server_socket)
 {
@@ -23,33 +26,40 @@ int handle_input(int server_socket)
     
     switch(c){
         case KEY_LEFT:
-            msg = create_msg(MOVE_CURSOR, user_id, file_id, "2");
+            msg = create_msg(MOVE_CURSOR, user_id, file_id, file_version, "2");
             send_msg(server_socket, msg);
             bcursor_move(b, OWN_CURS_ID, LEFT);
             break;
             
         case KEY_RIGHT:
-            msg = create_msg(MOVE_CURSOR, user_id, file_id, "3");
+            msg = create_msg(MOVE_CURSOR, user_id, file_id, file_version, "3");
             send_msg(server_socket, msg);
             bcursor_move(b, OWN_CURS_ID, RIGHT);
             break;
 
         case KEY_UP:
-            msg = create_msg(MOVE_CURSOR, user_id, file_id, "0");
+            msg = create_msg(MOVE_CURSOR, user_id, file_id, file_version, "0");
             send_msg(server_socket, msg);
             bcursor_move(b, OWN_CURS_ID, UP);
             break;
 
         case KEY_DOWN:
-            msg = create_msg(MOVE_CURSOR, user_id, file_id, "1");
+            msg = create_msg(MOVE_CURSOR, user_id, file_id, file_version, "1");
             send_msg(server_socket, msg);
             bcursor_move(b, OWN_CURS_ID, DOWN);
             break;
 
         case KEY_BACKSPACE:
-            msg = create_msg(DELETE, user_id, file_id, NULL);
+            msg = create_msg(DELETE, user_id, file_id, file_version, NULL);
             send_msg(server_socket, msg);
             bcursor_del(b, OWN_CURS_ID);
+            break;
+            
+        case KEY_ESC:
+            msg = create_msg(QUIT, user_id, file_id, file_version, NULL);
+            send_msg(server_socket, msg);
+            buffer_free(b);
+            quit = 1;
             break;
 
         case KEY_F(8):
@@ -65,7 +75,7 @@ int handle_input(int server_socket)
             break;
 
         case '\n':
-            msg = create_msg(INSERT_LINE, user_id, file_id, NULL);
+            msg = create_msg(INSERT_LINE, user_id, file_id, file_version, NULL);
             send_msg(server_socket, msg);
             bcursor_insert_line(b, OWN_CURS_ID);
             break;
@@ -73,7 +83,7 @@ int handle_input(int server_socket)
         default:
             payload[0] = c;
             payload[1] = 0;
-            msg = create_msg(INSERT, user_id, file_id, payload);
+            msg = create_msg(INSERT, user_id, file_id, file_version, payload);
             send_msg(server_socket, msg);
             bcursor_insert(b, OWN_CURS_ID, c);
     }
@@ -81,15 +91,13 @@ int handle_input(int server_socket)
 
 int handle_msg(int server_socket, message* msg)
 {
-    //if(b == NULL) printf("server msg\n");
-    //print_msg(msg);
     CMOVE_DIR dir;
     message* delmsg = msg;
     switch(msg->type)
     {
         case MSG_OK:
             user_id = msg->user_id;
-            msg = create_msg(FILE_REQUEST, user_id, file_id, NULL);
+            msg = create_msg(FILE_REQUEST, user_id, file_id, file_version, NULL);
             send_msg(server_socket, msg);
             break;
         case FILE_RESPONSE:
@@ -172,13 +180,13 @@ int main(void)
     scanf("%s", &password);*/
     
     //login message
-    printf("sending login msg...\n");
-    msg = create_msg(LOGIN, user_id, -1, "asdas");
+    //printf("sending login msg...\n");
+    msg = create_msg(LOGIN, user_id, -1, -1, "login");
     send_msg(server_socket, msg);
-    printf("send login msg\n");
+    //printf("send login msg\n");
         
     
-    while(1)
+    while(quit == 0)
     {
         //clear the socket set
         FD_ZERO(&readfdset);

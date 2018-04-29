@@ -11,6 +11,7 @@ char* serialize_msg(message* msg)
     json_object_set_number(root_object, "type", msg->type);
     json_object_set_number(root_object, "user_id", msg->user_id);
     json_object_set_number(root_object, "file_id", msg->file_id);
+    json_object_set_number(root_object, "file_version", msg->file_version);
     if(msg->payload)
         json_object_set_string(root_object, "payload", msg->payload);
     
@@ -21,7 +22,6 @@ char* serialize_msg(message* msg)
 
 message* deserialize_msg(char* serialized_msg)
 {
-    printf("%s\n", serialized_msg);
     JSON_Value *root_value = json_parse_string(serialized_msg);
     JSON_Object *root_object = json_value_get_object(root_value);
     message* msg = malloc(sizeof(msg));
@@ -30,6 +30,7 @@ message* deserialize_msg(char* serialized_msg)
     msg->type = (int)json_object_get_number(root_object, "type");
     msg->user_id = (int)json_object_get_number(root_object, "user_id");
     msg->file_id = (int)json_object_get_number(root_object, "file_id");
+    msg->file_version = (int)json_object_get_number(root_object, "file_version");
     
     if(json_object_has_value(root_object, "payload"))
         msg->payload = (char*)json_object_get_string(root_object, "payload");
@@ -48,12 +49,13 @@ void delete_msg(message* msg)
     }
 }
 
-message* create_msg(MSG_TYPE type, int user_id, int file_id, char* payload)
+message* create_msg(MSG_TYPE type, int user_id, int file_id, int file_version, char* payload)
 {
     message* msg = malloc(sizeof(msg));
     msg->type = type;
     msg->user_id = user_id;
     msg->file_id = file_id;
+    msg->file_version = file_version;
     msg->payload = payload;
     return msg;
 }
@@ -149,6 +151,7 @@ void print_msg(message *msg)
     }
     printf("\tuser_id:\t%d\n", msg->user_id);
     printf("\tfile_id:\t%d\n", msg->file_id);
+    printf("\tfile_version:\t%d\n", msg->file_version);
     printf("\tpayload:\t%s\n", msg->payload);
     printf("MSG_END!\n");
 }

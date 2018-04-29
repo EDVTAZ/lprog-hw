@@ -23,6 +23,7 @@ typedef struct message {
     MSG_TYPE type;
     int user_id;
     int file_id;
+    int file_version;
     char *payload;
 } message;
 
@@ -38,7 +39,7 @@ message* deserialize_message(char* serialized_message);
 
 void delete_msg(message *msg);
 
-message* create_msg(MSG_TYPE type, int user_id, int file_id, char* payload);
+message* create_msg(MSG_TYPE type, int user_id, int file_id, int file_version, char* payload);
 
 void print_msg(message *msg);
 

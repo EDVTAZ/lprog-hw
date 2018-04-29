@@ -51,7 +51,7 @@ int handle_msg(int socket, message* msg)
         return 0;
     }
     print_msg(msg);
-    
+    int i;
     int user_id;
     buffer* buf;
     char* payload; 
@@ -66,42 +66,50 @@ int handle_msg(int socket, message* msg)
             user_id = handle_login(msg);
             if (user_id)
             {
-                send_msg(socket, create_msg(MSG_OK, user_id, -1, NULL));
+                send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
                 //send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
             } 
 			else
             {
-                send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
+                send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
             }
             break;
         case REGISTER:
             user_id = handle_register(msg);
             if (user_id)
             {
-                send_msg(socket, create_msg(MSG_OK, user_id, -1, NULL));
+                send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
             } else
             {
-                send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
+                send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
             }
             break;
         case QUIT:
+            
+            for (i = 0; i < MAX_CLIENTS; i++) 
+            {
+                if(client_socket[i] == socket)
+                {
+                    client_socket[i] = 0;
+                }
+            }
             close(socket);
             break;
         case FILE_REQUEST:
             buf = search_file(msg->file_id);
             payload = buffer_serialize(buf);
-            send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, payload));
+            send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, payload));
 
-				bcursor_copy_own(buf, user_id);
-				msg = create_msg(ADD_CURSOR, user_id, msg->file_id, NULL);
-				send_msg_everyone(client_socket, 30, socket, msg);
+            bcursor_copy_own(buf, user_id);
+            msg = create_msg(ADD_CURSOR, user_id, msg->file_id, msg->file_version, NULL);
+            send_msg_everyone(client_socket, 30, socket, msg);
             break;
         case FILE_RESPONSE:
             break;
         case FILE_LIST:
             buf = search_file(msg->file_id);
             payload = buffer_serialize(buf);
-            send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->payload));
+            send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, msg->payload));
             break;
         case DELETE_FILE:
             delete_file(msg->file_id);
