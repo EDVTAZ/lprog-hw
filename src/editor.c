@@ -9,6 +9,7 @@
 
 #define SERV_ADDR "127.0.0.1"
 #define PORT 8888
+#define OWN_CURS_ID 0
 //asdsad
 buffer* b;
 int user_id;
@@ -24,31 +25,31 @@ int handle_input(int server_socket)
         case KEY_LEFT:
             msg = create_msg(MOVE_CURSOR, user_id, file_id, "2");
             send_msg(server_socket, msg);
-            bcursor_move(b, user_id, LEFT);
+            bcursor_move(b, OWN_CURS_ID, LEFT);
             break;
             
         case KEY_RIGHT:
             msg = create_msg(MOVE_CURSOR, user_id, file_id, "3");
             send_msg(server_socket, msg);
-            bcursor_move(b, user_id, RIGHT);
+            bcursor_move(b, OWN_CURS_ID, RIGHT);
             break;
 
         case KEY_UP:
             msg = create_msg(MOVE_CURSOR, user_id, file_id, "0");
             send_msg(server_socket, msg);
-            bcursor_move(b, user_id, UP);
+            bcursor_move(b, OWN_CURS_ID, UP);
             break;
 
         case KEY_DOWN:
             msg = create_msg(MOVE_CURSOR, user_id, file_id, "1");
             send_msg(server_socket, msg);
-            bcursor_move(b, user_id, DOWN);
+            bcursor_move(b, OWN_CURS_ID, DOWN);
             break;
 
         case KEY_BACKSPACE:
             msg = create_msg(DELETE, user_id, file_id, NULL);
             send_msg(server_socket, msg);
-            bcursor_del(b, user_id);
+            bcursor_del(b, OWN_CURS_ID);
             break;
 
         case KEY_F(8):
@@ -66,7 +67,7 @@ int handle_input(int server_socket)
         case '\n':
             msg = create_msg(INSERT_LINE, user_id, file_id, NULL);
             send_msg(server_socket, msg);
-            bcursor_insert_line(b, user_id);
+            bcursor_insert_line(b, OWN_CURS_ID);
             break;
 
         default:
@@ -74,7 +75,7 @@ int handle_input(int server_socket)
             payload[1] = 0;
             msg = create_msg(INSERT, user_id, file_id, payload);
             send_msg(server_socket, msg);
-            bcursor_insert(b, user_id, c);
+            bcursor_insert(b, OWN_CURS_ID, c);
     }
 }
 

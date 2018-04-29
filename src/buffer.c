@@ -309,8 +309,9 @@ line* bline_find(buffer* b, int id)
 // find cursor by id
 cursor* bcursor_find(buffer* b, int id){
     if(b->own_curs->id == id) return b->own_curs;
-    else for(int i=0; i<MAX_CURSOR_NUM; i++){
-        if(b->peer_curss[i]->id == id) return b->peer_curss[i];
+    else for(int i=0; i<MAX_CURSOR_NUM; i++)
+	{
+        if(b->peer_curss[i] && b->peer_curss[i]->id == id) return b->peer_curss[i];
     }
 
     return NULL;
@@ -572,6 +573,7 @@ BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir){
 BRES bcursor_insert(buffer* b, int id, char chr){
     
     cursor* c = bcursor_find(b, id);
+	if(!c) return;
     BRES res = cursor_insert(c, chr);
 
     if(res == UPDATE || res == SUCCESS)

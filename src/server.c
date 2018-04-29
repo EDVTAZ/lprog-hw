@@ -22,8 +22,8 @@ int client_socket[30];
 
 int handle_login(message* msg)
 {
-    //TODO:
-    return 1;
+    client_id++;
+    return client_id;
 }
 
 int handle_register(message* msg)
@@ -66,11 +66,10 @@ int handle_msg(int socket, message* msg)
             user_id = handle_login(msg);
             if (user_id)
             {
-                client_id++;
-                send_msg(socket, create_msg(MSG_OK, client_id, -1, NULL));
-                bcursor_new(b, client_id, 0, 0);
-				buffer_copy_own(b, client_id);
-            } else
+                send_msg(socket, create_msg(MSG_OK, user_id, -1, NULL));
+                //send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
+            } 
+			else
             {
                 send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
             }
@@ -92,6 +91,10 @@ int handle_msg(int socket, message* msg)
             buf = search_file(msg->file_id);
             payload = buffer_serialize(buf);
             send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, payload));
+
+				bcursor_copy_own(buf, user_id);
+				msg = create_msg(ADD_CURSOR, user_id, msg->file_id, NULL);
+				send_msg_everyone(client_socket, 30, socket, msg);
             break;
         case FILE_RESPONSE:
             break;
@@ -279,4 +282,4 @@ int main(void)
     close(server_socket);
 
     return 0;
-    }
+}
