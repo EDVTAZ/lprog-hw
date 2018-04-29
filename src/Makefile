@@ -11,7 +11,7 @@ LIBS=-lncurses -lrope
 _DEPS = ui.h buffer.h rope.h parson.h msg.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ_E = main.o ui.o buffer.o parson.o msg.o
+_OBJ_E = editor.o ui.o buffer.o parson.o msg.o
 OBJ_E = $(patsubst %,$(ODIR_E)/%,$(_OBJ_E))
 
 _OBJ_S = server.o ui.o buffer.o parson.o msg.o
