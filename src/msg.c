@@ -21,6 +21,7 @@ char* serialize_msg(message* msg)
 
 message* deserialize_msg(char* serialized_msg)
 {
+    printf("%s\n", serialized_msg);
     JSON_Value *root_value = json_parse_string(serialized_msg);
     JSON_Object *root_object = json_value_get_object(root_value);
     message* msg = malloc(sizeof(msg));

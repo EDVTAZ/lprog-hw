@@ -71,7 +71,7 @@ int handle_input(int server_socket)
 
         default:
             payload[0] = c;
-            payload[1] = '\n';
+            payload[1] = 0;
             msg = create_msg(INSERT, user_id, file_id, payload);
             send_msg(server_socket, msg);
             bcursor_insert(b, user_id, c);
@@ -93,8 +93,9 @@ int handle_msg(int server_socket, message* msg)
             break;
         case FILE_RESPONSE:
             b = buffer_deserialize(msg->payload, 1);
-            bcursor_new(b, user_id, 0, 0);
-            b->u = ui_init(b);
+            //bcursor_new(b, user_id, 0, 0);
+            //b->u = ui_init(b);
+            buffer_add_ui(b);
             ui_update(b->u);
             break;
         case INSERT:
@@ -118,7 +119,7 @@ int handle_msg(int server_socket, message* msg)
             bcursor_move(b, msg->user_id, dir);
             break;
         case ADD_CURSOR:
-            bcursor_new(b, msg->user_id, 0, 0);
+            if(user_id != msg->user_id) bcursor_new(b, msg->user_id, 0, 0);
             break;
         case DELETE_CURSOR:
             //TODO:

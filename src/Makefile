@@ -23,6 +23,8 @@ $(ODIR_S)/%.o: %.c $(DEPS)
 $(ODIR_E)/%.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
+all: server editor
+
 server: $(OBJ_S)
 	gcc -o $@ $^ $(CFLAGS) $(LIBS)
 

@@ -66,9 +66,10 @@ int handle_msg(int socket, message* msg)
             user_id = handle_login(msg);
             if (user_id)
             {
-                send_msg(socket, create_msg(MSG_OK, client_id, -1, NULL));
                 client_id++;
+                send_msg(socket, create_msg(MSG_OK, client_id, -1, NULL));
                 bcursor_new(b, client_id, 0, 0);
+				buffer_copy_own(b, client_id);
             } else
             {
                 send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
