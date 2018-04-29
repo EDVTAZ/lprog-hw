@@ -16,6 +16,10 @@
 
 buffer* b;
 
+int client_id;
+int client_socket[30];
+
+
 int handle_login(message* msg)
 {
     //TODO:
@@ -59,11 +63,12 @@ int handle_msg(int socket, message* msg)
         case MSG_OK:
             break;
         case LOGIN:
-            printf("login\n");
             user_id = handle_login(msg);
             if (user_id)
             {
-                send_msg(socket, create_msg(MSG_OK, user_id, -1, NULL));
+                send_msg(socket, create_msg(MSG_OK, client_id, -1, NULL));
+                client_id++;
+                bcursor_new(b, client_id, 0, 0);
             } else
             {
                 send_msg(socket, create_msg(MSG_FAILED, -1, -1, NULL));
@@ -85,7 +90,6 @@ int handle_msg(int socket, message* msg)
         case FILE_REQUEST:
             buf = search_file(msg->file_id);
             payload = buffer_serialize(buf);
-            //printf("payload: %s\n", payload);
             send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, payload));
             break;
         case FILE_RESPONSE:
@@ -100,15 +104,18 @@ int handle_msg(int socket, message* msg)
             break;
         case INSERT:
             buf = search_file(msg->file_id);
-            bcursor_insert(buf, msg->user_id, msg->payload);
+            bcursor_insert(buf, msg->user_id, msg->payload[0]);
+            send_msg_everyone(client_socket, 30, socket, msg);
             break;
         case INSERT_LINE:
             buf = search_file(msg->file_id);
-            bcursor_insert(buf, msg->user_id, msg->payload);
+            bcursor_insert_line(buf, msg->user_id);
+            send_msg_everyone(client_socket, 30, socket, msg);
             break;
         case DELETE:
             buf = search_file(msg->file_id);
             bcursor_del(buf, msg->user_id);
+            send_msg_everyone(client_socket, 30, socket, msg);
             break;
         case MOVE_CURSOR:
             if(strcmp(msg->payload, "0") == 0)
@@ -121,6 +128,7 @@ int handle_msg(int socket, message* msg)
                 dir = RIGHT;
             buf = search_file(msg->file_id);
             bcursor_move(buf, msg->user_id, dir);
+            send_msg_everyone(client_socket, 30, socket, msg);
             break;
         case ADD_CURSOR:
             buf = search_file(msg->file_id);
@@ -132,7 +140,10 @@ int handle_msg(int socket, message* msg)
         default:
             break;
     }
-    delete_msg(msg);
+    if(msg != NULL)
+    {
+        delete_msg(msg);
+    }
     //TODO:
     return 1;
 }
@@ -143,10 +154,12 @@ int main(void)
     struct sockaddr_in address;
     fd_set readfdset;
     int sd, maxfd;
-    int server_socket , new_socket , client_socket[30], activity, i;
+    int server_socket , new_socket, activity, i;
     socklen_t addrlen;
     char buf[1024];
     int amount;
+    
+    client_id = 0;
     
     //create buffer
     b = buffer_new(0, 0, HEIGHT, WIDTH, 0);

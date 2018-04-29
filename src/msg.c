@@ -60,16 +60,31 @@ message* create_msg(MSG_TYPE type, int user_id, int file_id, char* payload)
 int send_msg(int socket, message* msg)
 {
     char* serialized_msg = serialize_msg(msg);
-    //send(socket, serialized_msg, strlen(serialized_msg), 0);
-    write(socket, serialized_msg, strlen(serialized_msg));
+    send(socket, serialized_msg, strlen(serialized_msg), 0);
+    //write(socket, serialized_msg, strlen(serialized_msg));
     delete_msg(msg);
+}
+
+int send_msg_everyone(int sockets[], int size, int sender_socket, message* msg)
+{
+    int i;
+    char* serialized_msg = serialize_msg(msg);
+    for(i = 0; i < size; i++)
+    {
+        if(sockets[i] != 0 && sockets[i] != sender_socket)
+        {
+            send(sockets[i], serialized_msg, strlen(serialized_msg), 0);
+        }
+    }
+    //write(socket, serialized_msg, strlen(serialized_msg));
+    //delete_msg(msg);
 }
 
 message* recv_msg(int socket)
 {
     char serialized_msg[2048];
-    //int amount = recv(socket, serialized_msg, 1024, 0);
-    int amount = read(socket, serialized_msg, 2048);
+    int amount = recv(socket, serialized_msg, 2048, 0);
+    //int amount = read(socket, serialized_msg, 2048);
     if(amount <= 0)
         return NULL;
     message* msg = deserialize_msg(serialized_msg);

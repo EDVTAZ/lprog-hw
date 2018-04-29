@@ -28,6 +28,8 @@ typedef struct message {
 
 int send_msg(int socket, message* msg);
 
+int send_msg_everyone(int sockets[], int size, int sender_socket, message* msg);
+
 message* recv_msg(int socket);
 
 char* serialize_message(message* msg);
