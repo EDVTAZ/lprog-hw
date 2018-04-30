@@ -48,7 +48,7 @@ void binit_onscreen_info(buffer* b)
 BRES buffer_scroll(buffer* b, CMOVE_DIR dir)
 {
     if(dir == UP){
-        if(b->bottom->prev && b->top->prev){
+        if(b->bottom->prev && b->top->prev && b->own_curs->own_line != b->bottom && b->own_curs->own_line != b->bottom->prev){
             b->bottom->on_screen = 0;
             b->bottom = b->bottom->prev;
 
@@ -57,7 +57,7 @@ BRES buffer_scroll(buffer* b, CMOVE_DIR dir)
         } 
     }
     if(dir == DOWN){
-        if(b->top->next && b->bottom->next){
+        if(b->top->next && b->bottom->next && b->own_curs->own_line != b->top && b->own_curs->own_line != b->top->next){
             b->top->on_screen = 0;
             b->top = b->top->next;
 
@@ -74,19 +74,29 @@ BRES buffer_trim(buffer* b, line* l)
 
     if(l->where == SAME || l->where == BELLOW)
     {
-        if(b->bottom->prev)
+        if(b->bottom != b->own_curs->own_line)
         {
             b->bottom->on_screen = 0;
             b->bottom = b->bottom->prev; 
         }
+		else
+		{
+            b->top->on_screen = 0;
+            b->top = b->top->next;
+		}
     }
-    if(l->where == ABOVE)
+	else if(l->where == ABOVE)
     {
-        if(b->top->next)
+        if(b->top != b->own_curs->own_line)
         {
             b->top->on_screen = 0;
             b->top = b->top->next;
         }
+		else 
+		{
+            b->bottom->on_screen = 0;
+            b->bottom = b->bottom->prev; 
+		}
     }
 
     if(b->bottom == b->own_curs->own_line) buffer_scroll(b, DOWN);
@@ -107,7 +117,7 @@ BRES buffer_extend(buffer* b, line* l){
             b->bottom->on_screen = 1;
         }
     }
-    if(l->where == ABOVE)
+	else if(l->where == ABOVE)
     {
         if(b->top->prev)
         {
@@ -466,6 +476,19 @@ void buffer_free(buffer* b){
 BRES buffer_deletel(buffer* b, line* l){
     if(l->on_screen) buffer_extend(b, l);
 
+	// these shouldn't be necessary because of buffer_extend, but just to be sure... 
+	if(l == b->top)
+	{
+		b->top = l->prev;
+		b->top->on_screen = 1;
+	}
+	if(l == b->bottom)
+	{
+		b->bottom = l->next;
+		b->bottom->on_screen = 1;
+	}
+	if(l == b->last) b->last = l->prev;
+
     if(l->prev)
     {
         if(b->own_curs->own_line == l)
@@ -601,16 +624,17 @@ BRES bcursor_insert_line(buffer* b, int id){
     b->num_lines++;
     cursor* c = bcursor_find(b, id);
 
-    if(c->pos == 0){
+    if(c->pos == 0)
+	{
         line* ll = line_new(b->line_id_cnt++, c->own_line->prev, c->own_line);
         if(c->own_line == b->first) b->first = ll;
 
-            if(ll->on_screen)
-            {
-                buffer_trim(b, ll);
-            }
+        if(ll->on_screen)
+        {
+            buffer_trim(b, ll);
+		    if(c == b->own_curs) buffer_scroll(b, UP);
+        }
 
-            if(c == b->own_curs && c->own_line->next != b->bottom) buffer_scroll(b, UP);
         
         if(b->u && ll->on_screen) ui_update(b->u);
         return UPDATE;
@@ -645,10 +669,11 @@ BRES bcursor_insert_line(buffer* b, int id){
 
     c->pos = 0;
 
-    if(ll->on_screen) buffer_trim(b, ll);
-    if(c == b->own_curs && c->own_line == b->bottom){
-        buffer_scroll(b, DOWN);
-    }
+    if(ll->on_screen)
+	{
+		buffer_trim(b, ll);
+		if(c == b->own_curs) buffer_scroll(b, UP);
+	}
 
     //c->own_line = c->own_line->next;
     bcursor_move(b, id, DOWN);

@@ -131,7 +131,7 @@ int handle_msg(int server_socket, message* msg)
             if(user_id != msg->user_id) bcursor_new(b, msg->user_id, 0, 0);
             break;
         case DELETE_CURSOR:
-            //TODO:
+		    bcursor_free(b, msg->user_id);
             break;
         default:
             break;

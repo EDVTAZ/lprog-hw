@@ -1,6 +1,8 @@
 #include <msg.h>
 #include <parson.h>
 
+#define MAGIC_NUMBER 10000
+
 char* serialize_msg(message* msg)
 {
     JSON_Value *root_value = json_value_init_object();
@@ -17,11 +19,13 @@ char* serialize_msg(message* msg)
     
     serialized_string = json_serialize_to_string(root_value);
     json_value_free(root_value);
+	//printf("serialized: %s\n", serialized_string);
     return serialized_string;
 }
 
 message* deserialize_msg(char* serialized_msg)
 {
+	//printf("deserializing string: %s\n", serialized_msg);
     JSON_Value *root_value = json_parse_string(serialized_msg);
     JSON_Object *root_object = json_value_get_object(root_value);
     message* msg = malloc(sizeof(msg));
@@ -63,7 +67,7 @@ message* create_msg(MSG_TYPE type, int user_id, int file_id, int file_version, c
 int send_msg(int socket, message* msg)
 {
     char* serialized_msg = serialize_msg(msg);
-    send(socket, serialized_msg, strlen(serialized_msg), 0);
+    send(socket, serialized_msg, strlen(serialized_msg)+1, 0);
     //write(socket, serialized_msg, strlen(serialized_msg));
     delete_msg(msg);
 }
@@ -85,9 +89,9 @@ int send_msg_everyone(int sockets[], int size, int sender_socket, message* msg)
 
 message* recv_msg(int socket)
 {
-    char serialized_msg[2048];
-    int amount = recv(socket, serialized_msg, 2048, 0);
-    //int amount = read(socket, serialized_msg, 2048);
+    char serialized_msg[MAGIC_NUMBER];
+    int amount = recv(socket, serialized_msg, MAGIC_NUMBER, 0);
+    //int amount = read(socket, serialized_msg, MAGIC_NUMBER);
     if(amount <= 0)
         return NULL;
     message* msg = deserialize_msg(serialized_msg);

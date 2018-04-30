@@ -85,6 +85,11 @@ int handle_msg(int socket, message* msg)
             }
             break;
         case QUIT:
+
+            buf = search_file(msg->file_id);
+			bcursor_free(buf, msg->user_id);
+			msg = create_msg(DELETE_CURSOR, msg->user_id, -1, -1, NULL);
+            send_msg_everyone(client_socket, 30, socket, msg);
             
             for (i = 0; i < MAX_CLIENTS; i++) 
             {
@@ -174,7 +179,7 @@ int main(void)
     client_id = 0;
     
     //create buffer
-    b = buffer_new(0, 0, HEIGHT, WIDTH, 0);
+    b = buffer_new(0, 0, HEIGHT, WIDTH, 1);
     //b = buffer_from_file("testfile", 0, HEIGHT, WIDTH, 1);
 
     // create socket
