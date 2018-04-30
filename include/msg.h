@@ -1,6 +1,7 @@
 #ifndef msg_h
 #define msg_h
 
+//type of message, the processing depends on it
 typedef enum msg_type {
     MSG_FAILED = 100, 
     MSG_OK = 0,
@@ -19,29 +20,39 @@ typedef enum msg_type {
     DELETE_CURSOR = 25
 } MSG_TYPE;
 
+//socket message
 typedef struct message {
     MSG_TYPE type;
     int user_id;
     int file_id;
     int file_version;
+    //value depends on msg type
     char *payload;
 } message;
 
-int send_msg(int socket, message* msg);
+//serialize msg to the JSON string
+//char* serialize_message( message* msg );
 
-int send_msg_everyone(int sockets[], int size, int sender_socket, message* msg);
+//deserilaize JSON string to msg
+//message* deserialize_message( char* serialized_message );
 
-message* recv_msg(int socket);
+//create msg with defined attributes
+message* create_msg( MSG_TYPE type, int user_id, int file_id, int file_version, char* payload );
 
-char* serialize_message(message* msg);
+//free msg
+void delete_msg( message *msg );
 
-message* deserialize_message(char* serialized_message);
+//send defined msg to defined socket
+int send_msg( int socket, message* msg );
 
-void delete_msg(message *msg);
+//send defined msg to defined socket without delete
+int send_msg_without_delete( int socket, message* msg );
 
-message* create_msg(MSG_TYPE type, int user_id, int file_id, int file_version, char* payload);
+//receive msg by defined socket
+message* recv_msg( int socket );
 
-void print_msg(message *msg);
+//print msg to stdin
+void print_msg( message *msg );
 
 
 #endif

@@ -4,12 +4,13 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <buffer.h>
 #include <msg.h>
 
-#define KEY_ESC 27
 #define SERV_ADDR "127.0.0.1"
 #define PORT 8888
+#define KEY_ESC 27
 #define OWN_CURS_ID 0
 
 buffer* b;
@@ -18,46 +19,42 @@ int file_id = 1;
 int file_version = 1;
 int quit = 0;
 
+//handle keyboard input
 int handle_input(int server_socket)
 {
-    message* msg;
     char payload[2];
+    
+    //read keyboard input
     int c = getch();
     
     switch(c){
         case KEY_LEFT:
-            msg = create_msg(MOVE_CURSOR, user_id, file_id, file_version, "2");
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(MOVE_CURSOR, user_id, file_id, file_version, "2"));
             bcursor_move(b, OWN_CURS_ID, LEFT);
             break;
             
         case KEY_RIGHT:
-            msg = create_msg(MOVE_CURSOR, user_id, file_id, file_version, "3");
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(MOVE_CURSOR, user_id, file_id, file_version, "3"));
             bcursor_move(b, OWN_CURS_ID, RIGHT);
             break;
 
         case KEY_UP:
-            msg = create_msg(MOVE_CURSOR, user_id, file_id, file_version, "0");
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(MOVE_CURSOR, user_id, file_id, file_version, "0"));
             bcursor_move(b, OWN_CURS_ID, UP);
             break;
 
         case KEY_DOWN:
-            msg = create_msg(MOVE_CURSOR, user_id, file_id, file_version, "1");
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(MOVE_CURSOR, user_id, file_id, file_version, "1"));
             bcursor_move(b, OWN_CURS_ID, DOWN);
             break;
 
         case KEY_BACKSPACE:
-            msg = create_msg(DELETE, user_id, file_id, file_version, NULL);
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(DELETE, user_id, file_id, file_version, NULL));
             bcursor_del(b, OWN_CURS_ID);
             break;
             
         case KEY_ESC:
-            msg = create_msg(QUIT, user_id, file_id, file_version, NULL);
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(QUIT, user_id, file_id, file_version, NULL));
             buffer_free(b);
             quit = 1;
             break;
@@ -75,16 +72,14 @@ int handle_input(int server_socket)
             break;
 
         case '\n':
-            msg = create_msg(INSERT_LINE, user_id, file_id, file_version, NULL);
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(INSERT_LINE, user_id, file_id, file_version, NULL));
             bcursor_insert_line(b, OWN_CURS_ID);
             break;
 
         default:
             payload[0] = c;
             payload[1] = 0;
-            msg = create_msg(INSERT, user_id, file_id, file_version, payload);
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(INSERT, user_id, file_id, file_version, payload));
             bcursor_insert(b, OWN_CURS_ID, c);
     }
 }
@@ -92,13 +87,12 @@ int handle_input(int server_socket)
 int handle_msg(int server_socket, message* msg)
 {
     CMOVE_DIR dir;
-    message* delmsg = msg;
+
     switch(msg->type)
     {
         case MSG_OK:
             user_id = msg->user_id;
-            msg = create_msg(FILE_REQUEST, user_id, file_id, file_version, NULL);
-            send_msg(server_socket, msg);
+            send_msg(server_socket, create_msg(FILE_REQUEST, user_id, file_id, file_version, NULL));
             break;
         case FILE_RESPONSE:
             b = buffer_deserialize(msg->payload, 1);
@@ -131,45 +125,45 @@ int handle_msg(int server_socket, message* msg)
             if(user_id != msg->user_id) bcursor_new(b, msg->user_id, 0, 0);
             break;
         case DELETE_CURSOR:
-		    bcursor_free(b, msg->user_id);
+            bcursor_free(b, msg->user_id);
             break;
         default:
             break;
             
     }
-    delete_msg(delmsg);
+    //free msg
+    delete_msg(msg);
 }
 
 int main(void)
 {
-    fd_set readfdset;
-    int server_socket, maxfd, activity;
-    struct sockaddr_in address;
     size_t addrlen;
-    char buf[1024];
-    int amount;
+    struct sockaddr_in address;
+    int server_socket;
+    struct pollfd poll_list[2];
     
     //create socket
-    if((server_socket = socket (AF_INET, SOCK_STREAM, 0)) < 0)
+    if( ( server_socket = socket( AF_INET, SOCK_STREAM, 0 ) ) < 0 )
     {
         perror("socket");
         return -1;
     }
     
-    memset(&address, 0, sizeof(address));
+    //set family, address, port
+    memset( &address, 0, sizeof( address ) );
     address.sin_addr.s_addr = inet_addr( SERV_ADDR );
     address.sin_family = AF_INET;
     address.sin_port = htons( PORT );
-    addrlen = sizeof(address);
+    //count address length
+    addrlen = sizeof( address );
     
     //connect to server
-    if(connect(server_socket, (struct sockaddr *)&address, addrlen) < 0)
+    if( connect( server_socket, (struct sockaddr *)&address, addrlen ) < 0 )
     {
-        perror("connect");
+        perror( "connect" );
         return -1;
     }
     
-    message* msg;
     
     //login to server
     /*char username[20];
@@ -181,134 +175,41 @@ int main(void)
     
     //login message
     //printf("sending login msg...\n");
-    msg = create_msg(LOGIN, user_id, -1, -1, "login");
-    send_msg(server_socket, msg);
+    message* msg = create_msg( LOGIN, user_id, -1, -1, "login" );
+    send_msg( server_socket, msg );
     //printf("send login msg\n");
         
     
-    while(quit == 0)
+    while( quit == 0 )
     {
-        //clear the socket set
-        FD_ZERO(&readfdset);
-        //add server socket and standard input to set
-        FD_SET(server_socket, &readfdset);
-        FD_SET(STDIN_FILENO, &readfdset);
-        if(server_socket > 0) FD_SET(server_socket, &readfdset);
-        //set maxfd
-        maxfd = server_socket > STDIN_FILENO ? server_socket : STDIN_FILENO;
+        //set poll list
+        poll_list[0].fd = server_socket;
+        poll_list[0].events = POLLIN;
+        poll_list[1].fd = STDIN_FILENO;
+        poll_list[1].events = POLLIN;
         
-        activity = select( maxfd + 1 , &readfdset , NULL , NULL , NULL);
-        if (activity < 0) 
+        if( poll( poll_list, 2, -1 ) > 0 )
         {
-            perror("select");
-        }
+            //handle server socket message
+            if( poll_list[0].revents & POLLIN )
+            {
+                //handle message
+                handle_msg(server_socket, recv_msg(server_socket));
+            }
+            //handle stdin input
+            if( poll_list[1].revents & POLLIN )
+            {
+                //handle keyboard input
+                handle_input(server_socket);
+            }
             
-        if (FD_ISSET(server_socket, &readfdset)) 
-        {
-            //handle message
-            handle_msg(server_socket, recv_msg(server_socket));
         }
-        if (FD_ISSET(STDIN_FILENO, &readfdset)) 
-        {
-            //handle message
-            handle_input(server_socket);
-        }
-        
     }
     
     //close socket
-    close(server_socket);
+    close( server_socket );
     //end curses mode  
     endwin();  
     
     return 0;
 }
-
-
-
-
-
-
-
-
-/*#include <ncurses.h>
-#include <rope.h>
-#include <stdlib.h>
-
-#include <buffer.h>
-#include <ui.h>
-
-#define HEIGHT 20
-#define WIDTH 20
-
-int main()
-{
-
-
-    //buffer* b = buffer_new(0, 0, HEIGHT, WIDTH, 1);
-    buffer* b = buffer_from_file("testfile", 0, HEIGHT, WIDTH, 1);
-    bcursor_new(b, 1, 0, 0);
-    char* data;
-    int size;
-
-    int cid = 0;
-
-    ui_update(b->u);
-
-    int c;
-    while(c != KEY_F(8)){
-        cid ^= 1;
-        c = getch();
-
-        switch(c){
-            case KEY_LEFT:
-                bcursor_move(b, cid, LEFT);
-                break;
-                
-            case KEY_RIGHT:
-                bcursor_move(b, cid, RIGHT);
-                break;
-
-            case KEY_UP:
-                bcursor_move(b, cid, UP);
-                break;
-
-            case KEY_DOWN:
-                bcursor_move(b, cid, DOWN);
-                break;
-
-            case KEY_BACKSPACE:
-                bcursor_del(b, cid);
-                break;
-
-            case KEY_F(8):
-                buffer_save("atestfile", b);
-                buffer_free(b);
-                break;
-
-            case KEY_F(7):
-
-                data = buffer_serialize(b);
-
-                buffer_free(b);
-
-                b = buffer_deserialize(data, 1);
-                free(data);
-
-                break;
-
-            case '\n':
-                bcursor_insert_line(b, cid);
-                break;
-
-            default:
-                bcursor_insert(b, cid, c);
-        }
-    }
-
-
-    endwin();
-
-
-    return 0;
-}*/
