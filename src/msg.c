@@ -1,6 +1,13 @@
 #include <msg.h>
 #include <parson.h>
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+
 #define MAGIC_NUMBER 10000
 
 //serialize msg to the JSON string

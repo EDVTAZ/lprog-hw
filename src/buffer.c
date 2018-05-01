@@ -596,7 +596,7 @@ BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir){
 BRES bcursor_insert(buffer* b, int id, char chr){
     
     cursor* c = bcursor_find(b, id);
-	if(!c) return;
+	if(!c) return FAILED;
     BRES res = cursor_insert(c, chr);
 
     if(res == UPDATE || res == SUCCESS)
