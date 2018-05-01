@@ -20,7 +20,7 @@ When starting a client, the user can specify the IP address of the server (s)he 
 
 ## Dependencies
 
-* msgpack
-
+* [parson](https://github.com/kgabis/parson)
+* [librope](https://github.com/josephg/librope)
 
 
