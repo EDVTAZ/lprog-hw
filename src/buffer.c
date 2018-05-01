@@ -717,7 +717,6 @@ BRES bcursor_del(buffer* b, int id){
         // take care of peer cursors
         if(c != b->own_curs && c->own_line->next == b->own_curs->own_line)
         {
-			printf("hi\n");
             bcursor_move(b, b->own_curs->id, UP);
             b->own_curs->pos += c->pos;
         }
