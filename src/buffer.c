@@ -107,8 +107,6 @@ BRES buffer_trim(buffer* b, line* l)
 
 // after deleting a line, there is space for one more
 BRES buffer_extend(buffer* b, line* l){
-    if(b->bottom->next) b->bottom = b->bottom->next;
-    else if(b->top->prev) b->top = b->top->prev;
     if(l->where == SAME || l->where == BELLOW)
     {
         if(b->bottom->next)
@@ -632,8 +630,8 @@ BRES bcursor_insert_line(buffer* b, int id){
         if(ll->on_screen)
         {
             buffer_trim(b, ll);
-		    if(c == b->own_curs) buffer_scroll(b, UP);
         }
+		if(c == b->own_curs) buffer_scroll(b, UP);
 
         
         if(b->u && ll->on_screen) ui_update(b->u);
@@ -719,6 +717,7 @@ BRES bcursor_del(buffer* b, int id){
         // take care of peer cursors
         if(c != b->own_curs && c->own_line->next == b->own_curs->own_line)
         {
+			printf("hi\n");
             bcursor_move(b, b->own_curs->id, UP);
             b->own_curs->pos += c->pos;
         }
