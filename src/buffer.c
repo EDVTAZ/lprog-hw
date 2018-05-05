@@ -769,7 +769,8 @@ void buffer_add_ui(buffer* b)
     return;
 }
 
-buffer* buffer_deserialize(char* serd, int u){
+buffer* buffer_deserialize(char* serd, int u)
+{
     
     JSON_Value *root_value = json_parse_string(serd);
     JSON_Object *root_object = json_value_get_object(root_value);

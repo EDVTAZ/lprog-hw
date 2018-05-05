@@ -1,230 +1,101 @@
-#include <stdio.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <netinet/in.h>
-#include <poll.h>
-#include <msg.h>
 #include <buffer.h>
+#include <msg.h>
+
+#include <parson.h>
+
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+#include <sys/time.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <poll.h>
 #include <fcntl.h>
 
-
-#define SERV_ADDR "127.0.0.1"
-#define PORT 8889
 #define PPORT 8888
-#define MAX_CLIENTS 30
-#define HEIGHT 20
-#define WIDTH 20
+#define MAX_CLIENTS 5
+#define MAX_WORKERS 5
+#define MAX 64
 #define CERT "b.crt"
 #define KEY "b.key"
+#define HEIGHT 20
+#define WIDTH 20
 
-buffer* b;
+enum {SERVER_MODE, WORKER_MODE} mode;
+int hport = 46957;
 
-int client_id;
 struct pollfd poll_list[MAX_CLIENTS + 1];
+int clients[MAX_CLIENTS+1] = {0};
+#define REGISTERED_CLIENTS 3
+char *names[] = {"balzs", "gbor", "pisti"};
+char *passes[] = {"password", "12345", "degec"};
 
-//send msg to every relevant clients
-int send_msg_everyone( int sender_socket, message* msg )
+int worker_ports[MAX_WORKERS];
+#define MANAGED_FILE_NO 3
+char *files[] = {"testfile0", "testfile1", "testfile2"};
+buffer* buf;
+
+
+int validate_user(char *payload)
 {
-    int i;
-    for( i = 1; i <= MAX_CLIENTS; i++ )
-    {
-        if( poll_list[i].fd >= 0 && poll_list[i].fd != sender_socket )
-        {
-            send_msg_without_delete( poll_list[i].fd, msg );
-        }
-    }
-    
+	int id = 0;
+    JSON_Value *root_value = json_parse_string(payload);
+    JSON_Object *root_object = json_value_get_object(root_value);
+
+	const char *name = json_object_get_string(root_object, "name");
+	const char *pass = json_object_get_string(root_object, "pass");
+
+	int a;
+	for(a=0; a<REGISTERED_CLIENTS; a++)
+	{
+		if( !strcmp(names[a], name) && !strcmp(passes[a], pass) )
+			break;
+	}
+	if( a<REGISTERED_CLIENTS )
+	{
+		for(int i=1; i<=MAX_CLIENTS; i++)
+		{
+			if(!clients[i]) clients[i]=1;
+			id = i;
+			break;
+		}
+	}
+
+	json_value_free(root_value);
+	return id;
 }
 
-int handle_login(message* msg)
+int logged_in(int user_id)
 {
-    client_id++;
-    return client_id;
+	return clients[user_id];
 }
 
-int handle_register(message* msg)
+int setup_ssl_listen(int local_port, int public_port)
 {
-    //TODO:
-    return 1;
-}
-
-int delete_file()
-{
-    //TODO:
-    return 1;
-}
-
-buffer* search_file(int file_id)
-{
-    return b;
-}
-
-int handle_msg( int socket, message* msg )
-{
-    if(msg == NULL)
-    {
-        printf("null msg\n");
-        return 0;
-    }
-    
-    print_msg(msg);
-    
-    int i, user_id;
-    buffer* buf;
-    char* payload; 
-    CMOVE_DIR dir;
-    
-    switch( msg->type )
-    {
-        //handle sign in
-        case LOGIN:
-            user_id = handle_login(msg);
-            if (user_id)
-            {
-                send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
-            }else
-            {
-                send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
-            }
-            break;
-        
-        //handel sign up
-        case REGISTER:
-            user_id = handle_register(msg);
-            if (user_id)
-            {
-                send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
-            }else
-            {
-                send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
-            }
-            break;
-            
-        //handle logout
-        case QUIT:
-            //delete cursor from buffer
-            buf = search_file(msg->file_id);
-            bcursor_free(buf, msg->user_id);
-            
-            //delete cursor everywhere
-            send_msg_everyone(socket, create_msg(DELETE_CURSOR, msg->user_id, msg->file_id, msg->file_version, NULL));
-            
-            //delete from poll list
-            for (i = 1; i <= MAX_CLIENTS; i++) 
-            {
-                if(poll_list[i].fd == socket)
-                {
-                    poll_list[i].fd = -1;
-                    break;
-                }
-            }
-            
-            //close client socket
-            //close(socket);
-            break;
-        
-        //reply the requested file
-        case FILE_REQUEST:
-            buf = search_file(msg->file_id);
-            payload = buffer_serialize(buf);
-			printf("%s\n", payload);
-            send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, payload));
-            bcursor_copy_own(buf, user_id);
-            send_msg_everyone(socket, create_msg(ADD_CURSOR, user_id, msg->file_id, msg->file_version, NULL));
-            break;
-            
-        //delete the defined file from server
-        case DELETE_FILE:
-            delete_file(msg->file_id);
-            break;
-            
-        //insert character to buffer and send everyone
-        case INSERT:
-            buf = search_file(msg->file_id);
-            bcursor_insert(buf, msg->user_id, msg->payload[0]);
-            send_msg_everyone(socket, msg);
-            break;
-            
-        //insert new line to buffer and send everyone
-        case INSERT_LINE:
-            buf = search_file(msg->file_id);
-            bcursor_insert_line(buf, msg->user_id);
-            send_msg_everyone(socket, msg);
-            break;
-            
-        //delete character from buffer and send everyone
-        case DELETE:
-            buf = search_file(msg->file_id);
-            bcursor_del(buf, msg->user_id);
-            send_msg_everyone(socket, msg);
-            break;
-            
-        //move cursor in buffer and send everyone
-        case MOVE_CURSOR:
-            if(strcmp(msg->payload, "0") == 0)
-                dir = UP;
-            if(strcmp(msg->payload, "1") == 0)
-                dir = DOWN;
-            if(strcmp(msg->payload, "2") == 0)
-                dir = LEFT;
-            if(strcmp(msg->payload, "3") == 0)
-                dir = RIGHT;
-            buf = search_file(msg->file_id);
-            bcursor_move(buf, msg->user_id, dir);
-            send_msg_everyone(socket, msg);
-            break;
-            
-        //add cursor to buffer and send everyone
-        case ADD_CURSOR:
-            buf = search_file(msg->file_id);
-            bcursor_new(buf, msg->user_id, 0, 0);
-            break;
-            
-        //delete cursor from buffer and send everyone
-        case DELETE_CURSOR:
-            //TODO:
-            break;
-            
-        //default case
-        default:
-            break;
-    }
-    
-    //free msg
-    delete_msg(msg);
-    
-    //TODO:
-    return 1;
-}
-
-
-int main( void )
-{
+	// starts listening through socat ssl tunnel 
+	// returns with socket fd
+	// local port is the one that our program listens on and public port is the one socat ssl listens on
+	// if either of the ports are unavailable, it tries to increment it to find one that is
+	//
+	int sock;
     socklen_t addrlen;
     struct sockaddr_in address;
-    int i, server_socket , new_socket;
     
-    client_id = 0;
-    
-    //create buffer
-    b = buffer_new( 0, 0, HEIGHT, WIDTH, 0 );
-    //b = buffer_from_file("testfile", 0, HEIGHT, WIDTH, 1);
-
     // create server socket
-    if( ( server_socket = socket( AF_INET, SOCK_STREAM, 0 ) ) < 0 )
+    if( (sock=socket( AF_INET, SOCK_STREAM, 0 )) < 0 )
     {
-    perror( "socket" );
-    return -1;
+		perror( "socket" );
+		return -1;
     }
 
     //set server socket to allow multiple connections
     int opt = 1;
-    if( setsockopt( server_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof( opt ) ) < 0 )
+    if( setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof( opt )) < 0 )
     {
         perror( "setsockopt" );
         return -1;
@@ -233,26 +104,28 @@ int main( void )
     //set family, address, port
     memset( &address, 0, sizeof( address ) );
     address.sin_family = AF_INET;
-    //address.sin_addr.s_addr = inet_addr(SERV_ADDR);
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( PORT );
+    address.sin_port = htons( local_port );
     //count address length
     addrlen = sizeof(address);
 
     //bind socket to the addres
-    if(bind(server_socket, (struct sockaddr *)&address, addrlen) < 0)
+    if(bind(sock, (struct sockaddr *)&address, addrlen) < 0)
     {
         perror( "bind" );
         return -1;
     }
 
-    //set the server mode
-    listen( server_socket, 5 );
-
+	//
+	if(!listen(sock, 5))
+	{
+		perror("error starting listening");
+		//return -1;
+	}
     //set poll list
-    poll_list[0].fd = server_socket;
+    poll_list[0].fd = sock;
     poll_list[0].events = POLLIN;
-    for ( i = 1; i <= MAX_CLIENTS; i++ ) 
+    for( int i=1; i<=MAX_CLIENTS; i++ ) 
     {
         poll_list[i].fd = -1;
         poll_list[i].events = POLLIN;
@@ -260,37 +133,50 @@ int main( void )
 
 	if( fork() == 0 )
 	{
-		////setpgid(0,0);
-		//unlink("backpipe_s2c");
-		//mknod("backpipe_s2c", S_IFIFO | 0600, 0);
-		////system("mknod backpipe_s2c p");
-		//char cmd[1024];
-		//// for client
-		////snprintf(cmd, 1024, "nc --ssl --ssl-verify --ssl-trustfile b.crt localhost 4444 0<backpipe_c2s | nc -l %d > backpipe_c2s", PORT);
-		//// for server
-		//snprintf(cmd, 1024, "nc --ssl --ssl-cert b.crt --ssl-key b.key -l 4444 -k 0<backpipe_s2c  | nc localhost %d > backpipe_s2c", PORT);
 		char cmd[1024];
-		snprintf(cmd, 1024, "socat openssl-listen:%d,cert=%s,key=%s,verify=0,reuseaddr,fork tcp4:localhost:%d", PPORT, CERT, KEY, PORT);
+		snprintf(cmd, 1024, "socat openssl-listen:%d,cert=%s,key=%s,verify=0,reuseaddr,fork tcp4:localhost:%d", public_port, CERT, KEY, local_port);
 		system(cmd);
 		return 0;
 	}
 
-    //wait the client
-    while( 1 )
+	return sock;
+}
+
+void close_socket(int socket)
+{
+	//delete from poll list
+	for( int i=1; i<=MAX_CLIENTS; i++ ) 
+	{
+		if(poll_list[i].fd == socket)
+		{
+			poll_list[i].fd = -1;
+			break;
+		}
+	}
+	
+	//close client socket
+	close(socket);
+}
+
+int handle_msg( int socket, message* msg );
+int server_listen(int sock)
+{
+	int new_socket;
+    while(1)
     {
-        if( poll( poll_list, MAX_CLIENTS + 1, -1 ) > 0 )
+        if( poll( poll_list, MAX_CLIENTS+1, -1 ) > 0 )
         {
             //handle incoming new connection
             if( poll_list[0].revents & POLLIN )
             {
                 printf( "New connection\n" );
-                if( ( new_socket = accept( server_socket, NULL, NULL ) ) < 0 )
+                if( ( new_socket = accept( sock, NULL, NULL ) ) < 0 )
                 {
                     perror( "accept" );
                 }
                 
                 //add fd to poll list
-                for( i = 1; i <= MAX_CLIENTS; i++ )
+                for( int i=1; i<=MAX_CLIENTS; i++ )
                 {
                     if(poll_list[i].fd < 0)
                     {
@@ -301,7 +187,7 @@ int main( void )
                 }
             }
             //handle socket events
-            for( i = 1; i <= MAX_CLIENTS; i++ )
+            for( int i=1; i<=MAX_CLIENTS; i++ )
             {
                 //handle socket error and socket close
                 if( poll_list[i].revents & (POLLERR | POLLHUP) )
@@ -323,8 +209,233 @@ int main( void )
         }
     }
 
-    //close server socket
-    close( server_socket );
+	exit(0);
+}
 
+//send msg to every relevant clients
+int send_msg_everyone( int sender_socket, message* msg )
+{
+    int i;
+    for( i = 1; i <= MAX_CLIENTS; i++ )
+    {
+        if( poll_list[i].fd >= 0 && poll_list[i].fd != sender_socket )
+        {
+            send_msg_without_delete( poll_list[i].fd, msg );
+        }
+    }
+}
+
+int get_worker(int file_id)
+{
+	// creates a worker for the file with file_id on the specified ports
+	// fork is called inside, returns with the public port of the worker that clients should connect to
+	// if worker for the file already exists this doesn't do anything (except return the correct port)
+	
+	if( worker_ports[file_id] ) return worker_ports[file_id];
+
+	// TODO test if the given ports are free to use
+	int lp = hport++;
+	int pp = hport++;
+
+	if( fork()==0 )
+	{
+		mode = WORKER_MODE;
+
+		// set everyone logged out and empty sockets poll list
+		for(int i=0; i<MAX_CLIENTS+1; i++)
+		{
+			clients[i] = 0;
+			poll_list[i].fd = -1;
+		}
+
+		// init buffer
+		buf = buffer_from_file( files[file_id], file_id, HEIGHT, WIDTH, 0);
+
+		// start listening
+		int worker_sock = setup_ssl_listen(lp, pp);
+		server_listen(worker_sock);
+
+		// we get here if server is closing
+		close(worker_sock);
+		exit(0);
+	}
+
+	worker_ports[file_id] = pp;
+	return pp;
+}
+
+int handle_msg( int socket, message* msg )
+{
+    if(msg == NULL)
+    {
+        printf("null msg\n");
+        return 0;
+    }
+    
+    print_msg(msg);
+    
+    char* payload; 
+	int user_id;
+    CMOVE_DIR dir;
+
+	if(mode == SERVER_MODE)
+	{
+		switch( msg->type )
+		{
+			//handle sign in
+			case LOGIN:
+				//printf("%s ==\n", msg->payload);
+				user_id = validate_user(msg->payload);
+				if (user_id)
+				{
+					send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
+				}
+				else
+				{
+					send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
+				}
+				break;
+			
+			//handel sign up
+			case REGISTER:
+				// TODO !!
+				if (user_id)
+				{
+					send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
+				}else
+				{
+					send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
+				}
+				break;
+				
+			//reply the requested file
+			case FILE_REQUEST:
+				if( !logged_in(msg->user_id) )
+				{
+					close_socket(socket);
+				}
+				return 1;
+
+				int port = get_worker(msg->file_id);
+				
+				payload = malloc(24);
+				snprintf(payload, 24, "M%d", port);
+				printf("%s\n", payload);
+				send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, payload));
+				break;
+				
+			//delete the defined file from server
+			case DELETE_FILE:
+				// TODO !!
+				break;
+				
+			//handle logout
+			case QUIT:
+				clients[msg->user_id] = 0;
+				close_socket(socket);
+				break;
+				
+			//default case
+			default:
+				break;
+		}
+	}
+    
+	if(mode == WORKER_MODE)
+	{
+		switch( msg->type )
+		{
+			//handle sign in
+			case LOGIN:
+				user_id = validate_user(msg->payload);
+				if (user_id)
+				{
+					send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
+				}
+				else
+				{
+					send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
+				}
+				break;
+
+			//reply the requested file
+			case FILE_REQUEST:
+				if( !logged_in(msg->user_id) )
+				{
+					close_socket(socket);
+				}
+				return 1;
+				
+				payload = buffer_serialize(buf);
+				printf("%s\n", payload);
+				send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, payload));
+				bcursor_copy_own(buf, user_id);
+				send_msg_everyone(socket, create_msg(ADD_CURSOR, user_id, msg->file_id, msg->file_version, NULL));
+				break;
+			
+			//handle logout
+			case QUIT:
+				//delete cursor from buffer
+				bcursor_free(buf, msg->user_id);
+				
+				//delete cursor everywhere
+				send_msg_everyone(socket, create_msg(DELETE_CURSOR, msg->user_id, msg->file_id, msg->file_version, NULL));
+				
+				close_socket(socket);
+				break;
+			
+			//insert character to buffer and send everyone
+			case INSERT:
+				bcursor_insert(buf, msg->user_id, msg->payload[0]);
+				send_msg_everyone(socket, msg);
+				break;
+				
+			//insert new line to buffer and send everyone
+			case INSERT_LINE:
+				bcursor_insert_line(buf, msg->user_id);
+				send_msg_everyone(socket, msg);
+				break;
+				
+			//delete character from buffer and send everyone
+			case DELETE:
+				bcursor_del(buf, msg->user_id);
+				send_msg_everyone(socket, msg);
+				break;
+				
+			//move cursor in buffer and send everyone
+			case MOVE_CURSOR:
+				if(msg->payload[0] == '0')
+					dir = UP;
+				if(msg->payload[0] == '1')
+					dir = DOWN;
+				if(msg->payload[0] == '2')
+					dir = LEFT;
+				if(msg->payload[0] == '3')
+					dir = RIGHT;
+				bcursor_move(buf, msg->user_id, dir);
+				send_msg_everyone(socket, msg);
+				break;
+				
+			//default case
+			default:
+				break;
+		}
+	}
+    
+    //free msg
+    delete_msg(msg);
+    
+    //TODO:
     return 0;
 }
+
+int main()
+{
+	mode = SERVER_MODE;
+	int server_sock = setup_ssl_listen(hport++, PPORT);
+	server_listen(server_sock);
+
+    close( server_sock );
+	return 0;
+}
+
