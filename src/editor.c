@@ -8,9 +8,12 @@
 #include <poll.h>
 #include <buffer.h>
 #include <msg.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define SERV_ADDR "127.0.0.1"
-#define PORT 8888
+#define PORT 8887
 #define KEY_ESC 27
 #define OWN_CURS_ID 0
 
@@ -89,6 +92,12 @@ int handle_msg(int server_socket, message* msg)
 {
     CMOVE_DIR dir;
 
+    if(msg == NULL)
+    {
+        //printf("null msg\n");
+        return 0;
+    }
+
     switch(msg->type)
     {
         case MSG_OK:
@@ -142,6 +151,24 @@ int main(void)
     struct sockaddr_in address;
     int server_socket;
     struct pollfd poll_list[2];
+
+
+	if( fork() == 0 )
+	{
+		//setpgid(0,0);
+		unlink("backpipe_c2s");
+		mknod("backpipe_c2s", S_IFIFO | 0600, 0);
+		//system("mknod backpipe_c2s p");
+		char cmd[1024];
+		// for client
+		snprintf(cmd, 1024, "nc --ssl --ssl-verify --ssl-trustfile b.crt localhost 4444 0<backpipe_c2s  | nc -l %d -k > backpipe_c2s", PORT);
+		// for server
+		//snprintf(cmd, 1024, "nc --ssl --ssl-cert b.crt --ssl-key b.key -l 4444 0<backpipe_s2c | nc %s %d | tee backpipe_s2c", SERV_ADDR, PORT);
+		system(cmd);
+		return 0;
+	}
+	sleep(1);
+	
     
     //create socket
     if( ( server_socket = socket( AF_INET, SOCK_STREAM, 0 ) ) < 0 )

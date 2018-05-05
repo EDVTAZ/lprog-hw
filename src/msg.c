@@ -97,6 +97,8 @@ message* recv_msg( int socket )
 {
     char serialized_msg[MAGIC_NUMBER];
     int amount = recv( socket, serialized_msg, MAGIC_NUMBER, 0 );
+//	if(amount) printf("%s", serialized_msg);
+//	printf("===\n");
     if( amount <= 0 )
     {
         return NULL;

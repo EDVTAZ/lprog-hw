@@ -7,6 +7,10 @@
 #include <poll.h>
 #include <msg.h>
 #include <buffer.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 
 #define SERV_ADDR "127.0.0.1"
@@ -118,7 +122,7 @@ int handle_msg( int socket, message* msg )
             }
             
             //close client socket
-            close(socket);
+            //close(socket);
             break;
         
         //reply the requested file
@@ -250,6 +254,21 @@ int main( void )
         poll_list[i].fd = -1;
         poll_list[i].events = POLLIN;
     }
+
+	if( fork() == 0 )
+	{
+		//setpgid(0,0);
+		unlink("backpipe_s2c");
+		mknod("backpipe_s2c", S_IFIFO | 0600, 0);
+		//system("mknod backpipe_s2c p");
+		char cmd[1024];
+		// for client
+		//snprintf(cmd, 1024, "nc --ssl --ssl-verify --ssl-trustfile b.crt localhost 4444 0<backpipe_c2s | nc -l %d > backpipe_c2s", PORT);
+		// for server
+		snprintf(cmd, 1024, "nc --ssl --ssl-cert b.crt --ssl-key b.key -l 4444 -k 0<backpipe_s2c  | nc localhost %d > backpipe_s2c", PORT);
+		system(cmd);
+		return 0;
+	}
 
     //wait the client
     while( 1 )
