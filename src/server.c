@@ -14,10 +14,13 @@
 
 
 #define SERV_ADDR "127.0.0.1"
-#define PORT 8888
+#define PORT 8889
+#define PPORT 8888
 #define MAX_CLIENTS 30
 #define HEIGHT 20
 #define WIDTH 20
+#define CERT "b.crt"
+#define KEY "b.key"
 
 buffer* b;
 
@@ -257,15 +260,17 @@ int main( void )
 
 	if( fork() == 0 )
 	{
-		//setpgid(0,0);
-		unlink("backpipe_s2c");
-		mknod("backpipe_s2c", S_IFIFO | 0600, 0);
-		//system("mknod backpipe_s2c p");
+		////setpgid(0,0);
+		//unlink("backpipe_s2c");
+		//mknod("backpipe_s2c", S_IFIFO | 0600, 0);
+		////system("mknod backpipe_s2c p");
+		//char cmd[1024];
+		//// for client
+		////snprintf(cmd, 1024, "nc --ssl --ssl-verify --ssl-trustfile b.crt localhost 4444 0<backpipe_c2s | nc -l %d > backpipe_c2s", PORT);
+		//// for server
+		//snprintf(cmd, 1024, "nc --ssl --ssl-cert b.crt --ssl-key b.key -l 4444 -k 0<backpipe_s2c  | nc localhost %d > backpipe_s2c", PORT);
 		char cmd[1024];
-		// for client
-		//snprintf(cmd, 1024, "nc --ssl --ssl-verify --ssl-trustfile b.crt localhost 4444 0<backpipe_c2s | nc -l %d > backpipe_c2s", PORT);
-		// for server
-		snprintf(cmd, 1024, "nc --ssl --ssl-cert b.crt --ssl-key b.key -l 4444 -k 0<backpipe_s2c  | nc localhost %d > backpipe_s2c", PORT);
+		snprintf(cmd, 1024, "socat openssl-listen:%d,cert=%s,key=%s,verify=0,reuseaddr,fork tcp4:localhost:%d", PPORT, CERT, KEY, PORT);
 		system(cmd);
 		return 0;
 	}

@@ -13,9 +13,13 @@
 #include <fcntl.h>
 
 #define SERV_ADDR "127.0.0.1"
+#define SERV_NAME "localhost"
 #define PORT 8887
+#define PPORT 8888
 #define KEY_ESC 27
 #define OWN_CURS_ID 0
+#define CERT "b.crt"
+#define KEY "b.key"
 
 buffer* b;
 int user_id;
@@ -155,19 +159,21 @@ int main(void)
 
 	if( fork() == 0 )
 	{
-		//setpgid(0,0);
-		unlink("backpipe_c2s");
-		mknod("backpipe_c2s", S_IFIFO | 0600, 0);
-		//system("mknod backpipe_c2s p");
+	//	//setpgid(0,0);
+	//	unlink("backpipe_c2s");
+	//	mknod("backpipe_c2s", S_IFIFO | 0600, 0);
+	//	//system("mknod backpipe_c2s p");
+	//	char cmd[1024];
+	//	// for client
+	//	snprintf(cmd, 1024, "nc --ssl --ssl-verify --ssl-trustfile b.crt localhost 4444 0<backpipe_c2s  | nc -l %d > backpipe_c2s", PORT);
+	//	// for server
+	//	//snprintf(cmd, 1024, "nc --ssl --ssl-cert b.crt --ssl-key b.key -l 4444 0<backpipe_s2c | nc %s %d | tee backpipe_s2c", SERV_ADDR, PORT);
 		char cmd[1024];
-		// for client
-		snprintf(cmd, 1024, "nc --ssl --ssl-verify --ssl-trustfile b.crt localhost 4444 0<backpipe_c2s  | nc -l %d -k > backpipe_c2s", PORT);
-		// for server
-		//snprintf(cmd, 1024, "nc --ssl --ssl-cert b.crt --ssl-key b.key -l 4444 0<backpipe_s2c | nc %s %d | tee backpipe_s2c", SERV_ADDR, PORT);
+		snprintf(cmd, 1024, "socat tcp4-listen:%d,reuseaddr,fork ssl:%s:%d,cafile=%s,verify=1", PORT, SERV_NAME, PPORT, CERT);
 		system(cmd);
 		return 0;
 	}
-	sleep(1);
+	sleep(0.1);
 	
     
     //create socket
