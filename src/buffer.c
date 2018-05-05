@@ -350,8 +350,16 @@ buffer* buffer_new(int id, int ver, int h, int w, int ui){
     }
 
     binit_onscreen_info(b);
-    if(ui) b->u = ui_init(b);
-    else b->u = NULL;
+    if(ui)
+	{
+		b->u = ui_init(b);
+		b->server_mode = 0;
+	}
+    else
+	{
+		b->u = NULL;
+		b->server_mode = 1;
+	}
 
 }
 
@@ -366,6 +374,8 @@ buffer* buffer_from_file(char* fname, int id, int h, int w, int ui){
     }
 
     buffer* b = malloc(sizeof(buffer));
+
+	b->server_mode = 0;
 
     b->id = id;
     b->ver = 0;
@@ -410,7 +420,11 @@ buffer* buffer_from_file(char* fname, int id, int h, int w, int ui){
         perror("Error closing file");
 
     if(ui) b->u = ui_init(b);
-    else b->u = NULL;
+    else
+	{
+		b->u = NULL;
+		b->server_mode = 1;
+	}
 
     return b;
 }
@@ -566,6 +580,12 @@ BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir){
     cursor* c = bcursor_find(b, id);
 
     int seen = c->own_line->on_screen;
+    if(c == b->own_curs)
+	{
+		if(b->top == c->own_line) buffer_scroll(b, UP);
+		if(b->bottom== c->own_line) buffer_scroll(b, DOWN);
+	}
+
     CMOVE_RES res = cursor_move(c, dir);
     if(c->own_line->on_screen) seen = 1;
 
@@ -633,7 +653,8 @@ BRES bcursor_insert_line(buffer* b, int id){
         }
 		if(c == b->own_curs) buffer_scroll(b, UP);
 
-        
+		if(b->server_mode && b->own_curs->own_line != b->first) bcursor_move(b, b->own_curs->id, UP);
+
         if(b->u && ll->on_screen) ui_update(b->u);
         return UPDATE;
     }
@@ -768,6 +789,7 @@ buffer* buffer_deserialize(char* serd, int u){
     last = (int)json_object_get_number(root_object, "last");
     top = (int)json_object_get_number(root_object, "top");
     bottom = (int)json_object_get_number(root_object, "bottom");
+	b->server_mode = 0;
 
     //// lines
 
@@ -835,8 +857,13 @@ buffer* buffer_deserialize(char* serd, int u){
     {
         b->u = ui_init(b);
         ui_update(b->u);
+		b->server_mode = 0;
     }
-    else b->u = NULL;
+    else
+	{
+		b->u = NULL;
+		b->server_mode = 1;
+	}
 
     return b;
 }

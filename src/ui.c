@@ -95,7 +95,7 @@ void ui_update(ui* u){
     move(ypos, xpos);
     refresh();
 }
-
+/*
 // update the location of a cursor
 void ui_curs_update(ui* u, cursor* c){} 
 
@@ -110,4 +110,4 @@ void ui_nline_update(ui* u, line* l){}
 
 // update after a line was deleted
 void ui_dline_update(ui* u, line* l){}  
-
+*/

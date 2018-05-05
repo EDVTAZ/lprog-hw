@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -122,8 +123,7 @@ int handle_msg(int server_socket, message* msg)
             bcursor_move(b, msg->user_id, dir);
             break;
         case ADD_CURSOR:
-			// TODO need to get actual line and position from server. (e.g.: what if line with id 0 was already deleted)
-            if(user_id != msg->user_id) bcursor_new(b, msg->user_id, 0, 0);
+            if(user_id != msg->user_id) bcursor_new(b, msg->user_id, b->first->id, 0);
             break;
         case DELETE_CURSOR:
             bcursor_free(b, msg->user_id);

@@ -27,7 +27,7 @@ void ui_free(ui* u);
 
 // update everything
 void ui_update(ui* u);
-
+/*
 // update the location of a cursor
 void ui_curs_update(ui* u, struct cursor* c);
 
@@ -42,5 +42,6 @@ void ui_nline_update(ui* u, struct line* l);
 
 // update after a line was deleted
 void ui_dline_update(ui* u, struct line* l);
+*/
 
 #endif

@@ -117,6 +117,8 @@ struct buffer{
 
     // connected ui
     struct ui* u;
+	// 1 if we are in server mode
+	int server_mode;
 
     // scratch pad cstr
     char sp[SP_SIZE];
