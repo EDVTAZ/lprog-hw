@@ -144,29 +144,37 @@ int handle_msg(int sock, message* msg)
 int handle_input(int sock)
 {
 	int quit = 0;
-    char payload[2];
     
     //read keyboard input
     int c = getch();
+	char* cc;
     
     switch(c){
         case KEY_LEFT:
-            send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, "2"));
+			cc = malloc(2);
+			cc[0]='2'; cc[1]=0;
+            send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
             bcursor_move(b, OWN_CURS_ID, LEFT);
             break;
             
         case KEY_RIGHT:
-            send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, "3"));
+			cc = malloc(2);
+			cc[0]='3'; cc[1]=0;
+            send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
             bcursor_move(b, OWN_CURS_ID, RIGHT);
             break;
 
         case KEY_UP:
-            send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, "0"));
+			cc = malloc(2);
+			cc[0]='0'; cc[1]=0;
+            send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
             bcursor_move(b, OWN_CURS_ID, UP);
             break;
 
         case KEY_DOWN:
-            send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, "1"));
+			cc = malloc(2);
+			cc[0]='1'; cc[1]=0;
+            send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
             bcursor_move(b, OWN_CURS_ID, DOWN);
             break;
 
@@ -187,9 +195,9 @@ int handle_input(int sock)
             break;
 
         default:
-            payload[0] = c;
-            payload[1] = 0;
-            send_msg(sock, create_msg(INSERT, user_id, b->id, b->ver++, payload));
+			cc = malloc(2);
+			cc[0]=c; cc[1]=0;
+            send_msg(sock, create_msg(INSERT, user_id, b->id, b->ver++, cc));
             bcursor_insert(b, OWN_CURS_ID, c);
     }
 
@@ -198,6 +206,12 @@ int handle_input(int sock)
 
 int worker_loop(int sock)
 {
+	// log in to worker
+	char *payload = create_login_payload("pisti", "degec");
+	printf(payload);
+    message *msg = create_msg(LOGIN, -1, -1, -1, payload);
+    send_msg( sock, msg );
+
     while(1)
     {
         //set poll list
@@ -224,45 +238,81 @@ int worker_loop(int sock)
         }
     }
 
+	close( sock );
 	return 0;
+}
+
+int server_loop(int sock)
+{
+	int worker_port=0;
+	int quit=0;
+	char *payload = create_login_payload("pisti", "degec");
+    message* msg = create_msg(LOGIN, -1, -1, -1, payload);
+    send_msg( sock, msg );
+
+	while( !quit )
+	{
+        //set poll list
+        poll_list[0].fd = sock;
+        poll_list[0].events = POLLIN;
+        poll_list[1].fd = -1;
+        poll_list[1].events = POLLIN;
+        
+        if( poll( poll_list, 2, -1 ) > 0 )
+        {
+            //handle server socket message
+            if( poll_list[0].revents & POLLIN )
+            {
+				msg = recv_msg( sock );
+				if( !msg )
+				{
+					printf("Null msg received\n");
+					continue;
+				}
+
+				switch( msg->type )
+				{
+					case MSG_OK:
+						user_id = msg->user_id;
+						printf("%s\n\nType the number of the file you would like to edit! \n", msg->payload);
+						scanf("%d", &file_id);
+						send_msg(sock, create_msg(FILE_REQUEST, user_id, file_id, -1, NULL));
+						break;
+
+					case FILE_RESPONSE:
+						sscanf(msg->payload, "M%d", &worker_port);
+						quit = 1;
+						break;
+
+					case MSG_FAILED:
+						// panic
+						exit(1);
+						break;
+
+					// TODO add file upload and deletion options
+				}
+
+				delete_msg( msg );
+            }
+        }
+	}
+		
+	// log out from main server
+	send_msg(sock, create_msg(QUIT, user_id, -1, -1, NULL));
+	close(sock);
+	return worker_port;
 }
 
 int main()
 {
-	int worker_port;
 
 	// log in to main server
 	int client_sock = setup_ssl_connect(hport++, SERVER_NAME, PPORT);
-	char *payload = create_login_payload("pisti", "degec");
-    message* msg = create_msg(LOGIN, -1, -1, -1, payload);
-    send_msg( client_sock, msg );
+	int worker_port = server_loop(client_sock);
+		
+	if( !worker_port ) return 0;
 
-	// receive worker port
-	msg = recv_msg( client_sock );
-	if( msg->type == MSG_OK )
-	{
-		// TODO worker port is only told after file is chosen -> move all this stuff into the loop and deal with reconnecting somehow
-		sscanf(msg->payload, "M%d", &worker_port);
-		user_id = msg->user_id;
-	}
-	else
-	{
-		print_msg(msg);
-		printf("Server replied with not ok\n");
-		return 1;
-	}
-	
-	// log out from main server
-	send_msg(client_sock, create_msg(QUIT, user_id, -1, -1, NULL));
-	close(client_sock);
-
-	// log in to worker
 	client_sock = setup_ssl_connect(hport++, SERVER_NAME, worker_port);
-	payload = create_login_payload("pisti", "degec");
-	printf(payload);
-    msg = create_msg(LOGIN, -1, -1, -1, payload);
-    send_msg( client_sock, msg );
-
 	worker_loop( client_sock );
 
     close( client_sock );

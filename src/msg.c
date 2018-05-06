@@ -86,7 +86,7 @@ void delete_msg( message* msg )
 int send_msg( int socket, message* msg )
 {
     char* serialized_msg = serialize_msg( msg );
-	//printf("%s --\n", serialized_msg);
+	printf("%s --\n", serialized_msg);
 	fflush(stdout);
     if( send( socket, serialized_msg, strlen( serialized_msg ) + 1, 0 ) == -1 )
 	{

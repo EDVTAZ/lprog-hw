@@ -1,6 +1,5 @@
 #include <ui.h>
 #include <stdlib.h>
-//#include "../include/ui.h"
 
 // initialize ui
 ui* ui_init(buffer* b){

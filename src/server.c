@@ -29,15 +29,15 @@
 enum {SERVER_MODE, WORKER_MODE} mode;
 int hport = 46957;
 
-struct pollfd poll_list[MAX_CLIENTS + 1];
+struct pollfd poll_list[MAX_CLIENTS+1];
 int clients[MAX_CLIENTS+1] = {0};
 #define REGISTERED_CLIENTS 3
 char *names[] = {"balzs", "gbor", "pisti"};
 char *passes[] = {"password", "12345", "degec"};
 
-int worker_ports[MAX_WORKERS];
+int worker_ports[MAX_WORKERS+1];
 #define MANAGED_FILE_NO 3
-char *files[] = {"testfile0", "testfile1", "testfile2"};
+char *files[] = {"", "testfile0", "testfile1", "testfile2"};
 buffer* buf;
 
 
@@ -230,7 +230,7 @@ int get_worker(int file_id)
 	// creates a worker for the file with file_id on the specified ports
 	// fork is called inside, returns with the public port of the worker that clients should connect to
 	// if worker for the file already exists this doesn't do anything (except return the correct port)
-	
+
 	if( worker_ports[file_id] ) return worker_ports[file_id];
 
 	// TODO test if the given ports are free to use
@@ -276,7 +276,16 @@ int handle_msg( int socket, message* msg )
     
     char* payload; 
 	int user_id;
+	int port;
     CMOVE_DIR dir;
+
+	if( !logged_in(msg->user_id) && msg->type != LOGIN && msg->type != REGISTER )
+	{
+		printf("User not logged in: %d", msg->user_id);
+		close_socket(socket);
+		return 1;
+	}
+
 
 	if(mode == SERVER_MODE)
 	{
@@ -288,7 +297,9 @@ int handle_msg( int socket, message* msg )
 				user_id = validate_user(msg->payload);
 				if (user_id)
 				{
-					send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
+					char *pretty_file_list = malloc( 1024 );
+					snprintf(pretty_file_list, 1024, "1 - %s\n2 - %s\n3 - %s", files[1], files[2], files[3]);
+					send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, pretty_file_list));
 				}
 				else
 				{
@@ -310,13 +321,7 @@ int handle_msg( int socket, message* msg )
 				
 			//reply the requested file
 			case FILE_REQUEST:
-				if( !logged_in(msg->user_id) )
-				{
-					close_socket(socket);
-				}
-				return 1;
-
-				int port = get_worker(msg->file_id);
+				port = get_worker(msg->file_id);
 				
 				payload = malloc(24);
 				snprintf(payload, 24, "M%d", port);
@@ -360,12 +365,6 @@ int handle_msg( int socket, message* msg )
 
 			//reply the requested file
 			case FILE_REQUEST:
-				if( !logged_in(msg->user_id) )
-				{
-					close_socket(socket);
-				}
-				return 1;
-				
 				payload = buffer_serialize(buf);
 				printf("%s\n", payload);
 				send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, payload));
