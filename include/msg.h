@@ -3,21 +3,22 @@
 
 //type of message, the processing depends on it
 typedef enum msg_type {
-    MSG_FAILED = 100, 
-    MSG_OK = 0,
-    LOGIN = 1,
-    REGISTER = 2, 
-    QUIT = 3,
-    FILE_REQUEST = 10,
-    FILE_RESPONSE = 11,
-    FILE_LIST = 12,
-    DELETE_FILE = 13, 
-    INSERT = 20,
-    INSERT_LINE =  21,
-    DELETE = 22,
-    MOVE_CURSOR = 23,
-    ADD_CURSOR = 24,
-    DELETE_CURSOR = 25
+    MSG_FAILED, 
+    MSG_OK,
+    LOGIN,
+    REGISTER, 
+    QUIT,
+    FILE_REQUEST,
+    FILE_RESPONSE,
+    FILE_LIST,
+    CREATE_FILE,
+    DELETE_FILE, 
+    INSERT,
+    INSERT_LINE,
+    DELETE,
+    MOVE_CURSOR,
+    ADD_CURSOR,
+    DELETE_CURSOR
 } MSG_TYPE;
 
 //socket message

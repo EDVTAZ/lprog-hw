@@ -1,0 +1,3 @@
+balzs:password
+gbor:12345
+pisti:degec
