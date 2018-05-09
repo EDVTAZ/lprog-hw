@@ -87,9 +87,9 @@ void delete_msg( message* msg )
 int send_msg( int socket, message* msg )
 {
     char* serialized_msg = serialize_msg( msg );
-	printf("%s --\n", serialized_msg);
-	fflush(stdout);
-    if( send( socket, serialized_msg, strlen( serialized_msg ) + 1, 0 ) == -1 )
+	//printf("%s --\n", serialized_msg);
+	//fflush(stdout);
+    while( send( socket, serialized_msg, strlen( serialized_msg ) + 1, 0 ) == -1 )
 	{
 		perror("send");
 	}
@@ -107,9 +107,9 @@ int send_msg_without_delete( int socket, message* msg )
 message* recv_msg( int socket )
 {
     int amount = recv( socket, global_serialized_msg, MAGIC_NUMBER, 0 );
-	if(amount) printf("%s", global_serialized_msg);
-	printf("%d  ", amount);
-	printf("===\n");
+	//if(amount) printf("%s", global_serialized_msg);
+	//printf("%d  ", amount);
+	//printf("===\n");
     if( amount <= 0 )
     {
         return NULL;

@@ -17,7 +17,7 @@
 #include <poll.h>
 #include <fcntl.h>
 
-#define SERVER_NAME "152.66.157.54"
+#define SERVER_NAME "152.66.158.89"
 #define LOCALHOST "127.0.0.1"
 #define CERT "b.crt"
 #define PPORT 8888
@@ -31,6 +31,42 @@ buffer* b;
 int hport = 64957;
 struct pollfd poll_list[2];
 
+int port_free(int port)
+{
+	// tests if port is free to use
+	// ret: 1 if yes 0 if no
+
+	int sock;
+    socklen_t addrlen;
+    struct sockaddr_in address;
+    
+    // create server socket
+    if( (sock=socket( AF_INET, SOCK_STREAM, 0 )) < 0 )
+    {
+		perror( "socket" );
+		return 0;
+    }
+    //set family, address, port
+    memset( &address, 0, sizeof( address ) );
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons( port );
+    //count address length
+    addrlen = sizeof(address);
+
+    //bind socket to the addres
+    if(bind(sock, (struct sockaddr *)&address, addrlen) < 0)
+    {
+        perror( "bind" );
+		close( sock );
+        return 0;
+    }
+	
+	close( sock );
+	return 1;
+	
+}
+
 int setup_ssl_connect(int local_port, char *server_name, int server_port)
 {
 	printf("server port: %d\n", server_port);
@@ -40,7 +76,7 @@ int setup_ssl_connect(int local_port, char *server_name, int server_port)
 	if( fork() == 0 )
 	{
 		char cmd[1024];
-		snprintf(cmd, 1024, "socat tcp4-listen:%d,reuseaddr,fork ssl:%s:%d,cafile=%s,verify=1", local_port, server_name, server_port, CERT);
+		snprintf(cmd, 1024, "socat -v tcp4-listen:%d,reuseaddr,fork ssl:%s:%d,cafile=%s,verify=1 2>socat.log", local_port, server_name, server_port, CERT);
 		system(cmd);
 		return 0;
 	}
@@ -147,7 +183,7 @@ int handle_input(int sock)
     
     //read keyboard input
     int c = getch();
-	char* cc;
+	char* cc = NULL;
     
     switch(c){
         case KEY_LEFT:
@@ -208,7 +244,7 @@ int worker_loop(int sock)
 {
 	// log in to worker
 	char *payload = create_login_payload("pisti", "degec");
-	printf(payload);
+	//printf(payload);
     message *msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
 
@@ -307,11 +343,13 @@ int main()
 {
 
 	// log in to main server
+	while( !port_free(hport) ) hport++;
 	int client_sock = setup_ssl_connect(hport++, SERVER_NAME, PPORT);
 	int worker_port = server_loop(client_sock);
 		
 	if( !worker_port ) return 0;
 
+	while( !port_free(hport) ) hport++;
 	client_sock = setup_ssl_connect(hport++, SERVER_NAME, worker_port);
 	worker_loop( client_sock );
 

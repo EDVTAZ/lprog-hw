@@ -40,6 +40,42 @@ int worker_ports[MAX_WORKERS+1];
 char *files[] = {"", "testfile0", "testfile1", "testfile2"};
 buffer* buf;
 
+int port_free(int port)
+{
+	// tests if port is free to use
+	// ret: 1 if yes 0 if no
+
+	int sock;
+    socklen_t addrlen;
+    struct sockaddr_in address;
+    
+    // create server socket
+    if( (sock=socket( AF_INET, SOCK_STREAM, 0 )) < 0 )
+    {
+		perror( "socket" );
+		return 0;
+    }
+    //set family, address, port
+    memset( &address, 0, sizeof( address ) );
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons( port );
+    //count address length
+    addrlen = sizeof(address);
+
+    //bind socket to the addres
+    if(bind(sock, (struct sockaddr *)&address, addrlen) < 0)
+    {
+        perror( "bind" );
+		close( sock );
+        return 0;
+    }
+	
+	close( sock );
+	return 1;
+	
+}
+
 //replace \n to 0
 char* terminateNull(char* s){
     int i = 0;
@@ -329,7 +365,7 @@ int setup_ssl_listen(int local_port, int public_port)
 	if( fork() == 0 )
 	{
 		char cmd[1024];
-		snprintf(cmd, 1024, "socat openssl-listen:%d,cert=%s,key=%s,verify=0,reuseaddr,fork tcp4:localhost:%d", public_port, CERT, KEY, local_port);
+		snprintf(cmd, 1024, "socat -v openssl-listen:%d,cert=%s,key=%s,verify=0,reuseaddr,fork tcp4:localhost:%d", public_port, CERT, KEY, local_port);
 		system(cmd);
 		return 0;
 	}
@@ -428,8 +464,9 @@ int get_worker(int file_id)
 
 	if( worker_ports[file_id] ) return worker_ports[file_id];
 
-	// TODO test if the given ports are free to use
+	while( !port_free(hport) ) hport++;
 	int lp = hport++;
+	while( !port_free(hport) ) hport++;
 	int pp = hport++;
 
 	if( fork()==0 )
@@ -571,7 +608,7 @@ int handle_msg( int socket, message* msg )
 			case FILE_REQUEST:
 				payload = buffer_serialize(buf);
 				printf("%s\n", payload);
-				send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, payload));
+				send_msg(socket, create_msg(FILE_RESPONSE, user_id, msg->file_id, msg->file_version, payload));
 				bcursor_copy_own(buf, user_id);
 				send_msg_everyone(socket, create_msg(ADD_CURSOR, user_id, msg->file_id, msg->file_version, NULL));
 				break;
