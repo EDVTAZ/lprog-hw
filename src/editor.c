@@ -243,7 +243,12 @@ int handle_input(int sock)
 int worker_loop(int sock)
 {
 	// log in to worker
-	char *payload = create_login_payload("pisti", "degec");
+	char username[12], password[12];
+	printf("Username: ");
+	scanf("%11s", username);
+	printf("Password: ");
+	scanf("%11s", password);
+	char *payload = create_login_payload(username, password);
 	//printf(payload);
     message *msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
