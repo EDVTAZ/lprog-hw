@@ -17,7 +17,7 @@
 #include <poll.h>
 #include <fcntl.h>
 
-#define SERVER_NAME "localhost"
+#define SERVER_NAME "152.66.157.54"
 #define LOCALHOST "127.0.0.1"
 #define CERT "b.crt"
 #define PPORT 8888
@@ -266,7 +266,7 @@ int server_loop(int sock)
 				msg = recv_msg( sock );
 				if( !msg )
 				{
-					printf("Null msg received\n");
+					//printf("Null msg received\n");
 					continue;
 				}
 

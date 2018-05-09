@@ -56,7 +56,7 @@ char* terminateNull(char* s){
 }
 
 //username and password is equivalent
-int is_equivalent_strings(char* a1, char* a2, char* b1, char* b2){
+int is_equivalent_strings(const char* a1, const char* a2, const char* b1, const char* b2){
     if(strcmp(a1, a2) == 0 && strcmp(b1, b2) == 0){
         return 1;
     }
@@ -92,7 +92,7 @@ int validate_user(char *payload)
         while ((read = getline(&line, &len, fp)) != -1) {
             username = strtok (line,":");
             password = strtok (NULL, ":");
-            val = is_equivalent_strings(name, username, pass, terminateNull(password));
+            val = (int) is_equivalent_strings(name, username, pass, terminateNull(password));
             if(val) break;
             user_id++;
         }
@@ -100,7 +100,11 @@ int validate_user(char *payload)
         json_value_free(root_value);
         fclose(fp);
         //return
-        if(val) return user_id;
+        if(val)
+		{
+			clients[user_id] = 1;
+			return user_id;
+		}
         return -1;
 }
 
@@ -503,7 +507,7 @@ int handle_msg( int socket, message* msg )
 			
 			//handle sign up
 			case REGISTER:
-                                user_id = validate_register(msg->payload);
+				user_id = validate_register(msg->payload);
 				if (user_id)
 				{
 					send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
@@ -515,6 +519,7 @@ int handle_msg( int socket, message* msg )
 				
 			//reply the requested file
 			case FILE_REQUEST:
+				fflush(stdout);
 				port = get_worker(msg->file_id);
 				
 				payload = malloc(24);
@@ -523,10 +528,11 @@ int handle_msg( int socket, message* msg )
 				send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, payload));
 				break;
 				
-                        case CREATE_FILE:
-                                //TODO
-                                //file_id = (msg->payload);
-                                break;
+			case CREATE_FILE:
+					//TODO
+					//file_id = (msg->payload);
+					break;
+
 			//delete the defined file from server
 			case DELETE_FILE:
 				// TODO !!
@@ -622,7 +628,6 @@ int handle_msg( int socket, message* msg )
     //free msg
     delete_msg(msg);
     
-    //TODO:
     return 0;
 }
 

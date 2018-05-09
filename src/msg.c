@@ -8,7 +8,8 @@
 #include <sys/socket.h>
 
 
-#define MAGIC_NUMBER 10000
+#define MAGIC_NUMBER 100000
+char global_serialized_msg[MAGIC_NUMBER];
 
 //serialize msg to the JSON string
 char* serialize_msg( message* msg )
@@ -105,15 +106,15 @@ int send_msg_without_delete( int socket, message* msg )
 //receive msg by defined socket
 message* recv_msg( int socket )
 {
-    char serialized_msg[MAGIC_NUMBER];
-    int amount = recv( socket, serialized_msg, MAGIC_NUMBER, 0 );
-//	if(amount) printf("%s", serialized_msg);
-//	printf("===\n");
+    int amount = recv( socket, global_serialized_msg, MAGIC_NUMBER, 0 );
+	if(amount) printf("%s", global_serialized_msg);
+	printf("%d  ", amount);
+	printf("===\n");
     if( amount <= 0 )
     {
         return NULL;
     }
-    message* msg = deserialize_msg( serialized_msg );
+    message* msg = deserialize_msg( global_serialized_msg );
     return msg;
 }
 
