@@ -25,6 +25,7 @@
 #define KEY_ESC 27
 
 int user_id;
+char username[12], userpassword[12];
 int file_id = 0;
 buffer* b;
 
@@ -243,12 +244,7 @@ int handle_input(int sock)
 int worker_loop(int sock)
 {
 	// log in to worker
-	char username[12], password[12];
-	printf("Username: ");
-	scanf("%11s", username);
-	printf("Password: ");
-	scanf("%11s", password);
-	char *payload = create_login_payload(username, password);
+	char *payload = create_login_payload(username, userpassword);
 	//printf(payload);
     message *msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
@@ -287,7 +283,7 @@ int server_loop(int sock)
 {
 	int worker_port=0;
 	int quit=0;
-	char *payload = create_login_payload("pisti", "degec");
+	char *payload = create_login_payload(username, userpassword);
     message* msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
 
@@ -346,6 +342,10 @@ int server_loop(int sock)
 
 int main()
 {
+	printf("Username: ");
+	scanf("%11s", username);
+	printf("Password: ");
+	scanf("%11s", userpassword);
 
 	// log in to main server
 	while( !port_free(hport) ) hport++;
