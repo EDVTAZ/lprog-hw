@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 
 //replace \n to 0
@@ -38,41 +40,42 @@ int validate_user(char *payload)
 
 	const char *name = json_object_get_string(root_object, "name");
 	const char *pass = json_object_get_string(root_object, "pass");
+    //free json
+    json_value_free(root_value);
 
-        char* username;
-        char* password;
-        char * line = NULL;
-        size_t len = 0;
-        ssize_t read;
-        
-        //open file
-        FILE * fp = fopen("userdata.txt", "r");
-        if (fp == NULL){
-            perror("userdata open");
-            json_value_free(root_value);
-            return -1;
-        }
-        
-        int user_id = 1;
-        int val = 0;
-        //read userdata
-        while ((read = getline(&line, &len, fp)) != -1) {
-            username = strtok (line,":");
-            password = strtok (NULL, ":");
-            val = (int) is_equivalent_strings(name, username, pass, terminateNull(password));
-            if(val) break;
-            user_id++;
-        }
-        //free and close
-        json_value_free(root_value);
-        fclose(fp);
-        //return
-        if(val)
-		{
-			//clients[user_id] = 1;
-			return user_id;
-		}
-        return -1;
+    char* username;
+    char* password;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    
+    //open file
+    FILE * fp = fopen("userdata.txt", "r");
+    if (fp == NULL){
+        perror("userdata open");
+        return -2;
+    }
+    
+    //check if username and password is correct
+    int user_id = 1;
+    int val = 0;
+    while ((read = getline(&line, &len, fp)) != -1) {
+        username = strtok (line,":");
+        password = strtok (NULL, ":");
+        val = (int) is_equivalent_strings(name, username, pass, terminateNull(password));
+        if(val) break;
+        user_id++;
+    }
+
+    //close file
+    fclose(fp);
+    //return when user's data is correct
+    if(val) {
+        //clients[user_id] = 1;
+        return user_id;
+    }
+    //return when user's data is incorrect
+    return -1;
 }
 
 //if successful register return user_id else -1
@@ -83,6 +86,8 @@ int validate_register(char* payload)
 
     const char *name = json_object_get_string(root_object, "name");
     const char *pass = json_object_get_string(root_object, "pass");
+    //free json
+    json_value_free(root_value);
     
     char* username;
     char* password;
@@ -93,35 +98,32 @@ int validate_register(char* payload)
     //open file
     FILE * fp = fopen("userdata.txt", "ab+");
     if (fp == NULL){
-        json_value_free(root_value);
         perror("userdata open");
-        return -1;
+        return -2;
     }
     
+    //check username exist
     int user_id = 1;
     int val = 0;
-    //read userdata
     while ((read = getline(&line, &len, fp)) != -1) {
         username = strtok (line,":");
-        val = is_equivalent_strings(name, username, "", "");
+         val = is_equivalent_strings(name, username, "", "");
         if(val) break;
         user_id++;
     }
-    //return if exist same username
+    //return when username already exist
     if(val) {
-        json_value_free(root_value);
         fclose(fp);
         return -1;
         
     }
-    //write userdata
+    //write user's data to file
     if(user_id == 1){
-        fprintf(fp, "%s:%s", name, pass);
+         fprintf(fp, "%s:%s", name, pass);
     }else{
         fprintf(fp, "\n%s:%s", name, pass);
     }
-    //close, free and return
-    json_value_free(root_value);
+    //close file
     fclose(fp);
     return user_id;
 }
@@ -134,45 +136,42 @@ int createFile(char* filename)
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
-    
+
     //open file
     FILE * fp = fopen("files.txt", "ab+");
     if (fp == NULL){
         perror("files open");
-        return -1;
+        return -2;
     }
-    
+    //check filename exist
     int file_id = 0;
-    int val = 0;
-    //read files
+    int val = 0;  
     while ((read = getline(&line, &len, fp)) != -1) {
         file_id = atoi(strtok (line,":"));
         fn = strtok(NULL, ":");
         val = is_equivalent_strings(fn, filename, "", "");
         if(val) break;
     }
-    //if exist same filename
+    //return when filename already exist
     if(val) {
         fclose(fp);
         return -1;
+        
     }
-
-    //create file
-    FILE* file_ptr = fopen(filename, "w");
-    if (file_ptr == NULL){
-        perror("create file");
-        fclose(fp);
-        return -1;
-    }
-    fclose(file_ptr);
-
-    //write to files
+    //write data to file
     if(file_id == 0){
         fprintf(fp, "%d:%s", ++file_id, filename);
     }else{
         fprintf(fp, "\n%d:%s", ++file_id, filename);
     }
-    //close
+    //create and close file
+    int fd = creat(filename, (mode_t)0664);
+    if (fd == -1) {
+        perror("file creating");
+        return -3;
+    }
+    close(fd);
+    //close file
     fclose(fp);
     return file_id;
 }
@@ -180,14 +179,71 @@ int createFile(char* filename)
 
 int deleteFile(int file_id)
 {
-    int ret = remove(getFileName(file_id));
-    if(ret != 0)
-    {
-        return -1;
+    char * line_copy;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    
+    //get filename to file_id
+    char* filename = getFileName(file_id);
+
+    //rename the file
+    rename("files.txt", "files_temp.txt");
+
+    //open file
+    FILE * fp_temp = fopen("files_temp.txt", "r+");
+    if (fp_temp == NULL){
+        perror("files_temp.txt open");
+        return -3;
     }
 
-    //TODO
+    //create file
+    FILE * fp = fopen("files.txt", "w");
+    if (fp == NULL){
+        perror("files.txt open");
+        return -2;
+    }
+    
 
+    //count lines from files_tmp.txt
+    int lines_number = 0;
+    while ((read = getline(&line, &len, fp_temp)) != -1) {
+        lines_number++;
+    }
+
+    //go to beginning of file
+    fseek(fp_temp, 0, SEEK_SET);
+
+    //read data from files_temp.txt and write to files.txt
+    int id = 0;
+    int count = 0;
+    while ((read = getline(&line, &len, fp_temp)) != -1) {
+        count++;
+        line_copy = strdup(line);
+        id = atoi(strtok (line_copy,":"));
+        free(line_copy);
+        if(id != file_id){
+            if(count != lines_number){
+                fprintf(fp, "%s", line);
+            }else{
+                fprintf(fp, "%s", terminateNull(line));
+            }
+        }
+    }
+    //close files
+    fclose(fp_temp);
+    fclose(fp);
+    //delete temp and user file
+    int err = 0;
+    if(remove("files_temp.txt") != 0){
+        perror("delete userdata_temp.txt");
+        err = -1;
+    }
+    if(remove(filename) != 0){
+        perror("delete user's file");
+        err = -1;
+    }
+    return err;
 }
 
 //return filename
@@ -203,8 +259,8 @@ char* getFileName(int file_id)
     if (fp == NULL){
         perror("files open");
     }
-    //read and search filename
-    int id = 0;    
+    //search filename to file_id
+    int id = 0;
     while ((read = getline(&line, &len, fp)) != -1) {
         id = atoi(strtok (line,":"));
         fn = strtok(NULL, ":");
@@ -213,36 +269,62 @@ char* getFileName(int file_id)
             return terminateNull(fn);
         }
     }
-    //close and return
+    //close file
     fclose(fp);
     return NULL;
 }
 
+//TODO: check if user already has access
 //add user data to file_id
-void addFileToUser(int file_id, int user_id)
+int addFileToUser(int file_id, int user_id)
 {
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
     
-    //open file
-    FILE * fp = fopen("userdata.txt", "r+");
-    if (fp == NULL){
-        perror("userdata open");
+    //rename the file
+    rename("userdata.txt", "userdata_temp.txt");
+
+    //open files
+    FILE * fp_temp = fopen("userdata_temp.txt", "r+");
+    if (fp_temp == NULL){
+        perror("userdata_temp.txt open");
+        return -3;
     }
-    //TODO: now overwrite data 
+
+    //create file
+    FILE * fp = fopen("userdata.txt", "w");
+    if (fp == NULL){
+        perror("userdatatxt open");
+        return -2;
+    }
     
+    //read userdata from userdata_temp.txt and write to userdata.txt
     int i = 1;
-    //read userdata
-    while ((read = getline(&line, &len, fp)) != -1) {
+    while ((read = getline(&line, &len, fp_temp)) != -1) {
         if(i == user_id) {
-            fseek(fp, -1, SEEK_CUR);
-            //write
-            fprintf(fp, ":%d\n", file_id);
-            break;
+            fprintf(fp, "%s", line);
+            if(strstr(line, "\n") != NULL){
+                fseek(fp, -1, SEEK_CUR);
+                fprintf(fp, ":%d\n", file_id);
+            }else{
+                fprintf(fp, ":%d", file_id);
+            }
+        }else{
+            fprintf(fp, "%s", line);
         }
         i++;
     }
-    //close
+    //close files
+    fclose(fp_temp);
     fclose(fp);
+    //delete temp file
+    int err = 0;
+    if(remove("userdata_temp.txt") != 0){
+        perror("delete userdata_temp.txt");
+        err = -1;
+    }
+    return err;
 }
+
+//TODO: get user's files

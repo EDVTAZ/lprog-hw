@@ -24,6 +24,6 @@ int deleteFile(int file_id);
 char* getFileName(int file_id);
 
 //add user data to file_id
-void addFileToUser(int file_id, int user_id);
+int addFileToUser(int file_id, int user_id);
 
 #endif
