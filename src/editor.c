@@ -16,6 +16,7 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #define SERVER_NAME "localhost"
 #define LOCALHOST "127.0.0.1"
@@ -27,6 +28,7 @@
 int user_id;
 char username[12], userpassword[12];
 int file_id = 0;
+int child;
 buffer* b;
 
 int hport = 64957;
@@ -74,12 +76,21 @@ int setup_ssl_connect(int local_port, char *server_name, int server_port)
 	printf("server name: %s\n", server_name);
 	printf("local port: %d\n", local_port);
 	// connects to server through socat ssl tunnel
-	if( fork() == 0 )
+	child = fork();
+	if( child == 0 )
 	{
-		char cmd[1024];
-		snprintf(cmd, 1024, "socat -v tcp4-listen:%d,reuseaddr,fork ssl:%s:%d,cafile=%s,verify=1 2>socat.log", local_port, server_name, server_port, CERT);
-		system(cmd);
-		return 0;
+		char arg1[256], arg2[256];
+		snprintf(arg1, 256, "tcp4-listen:%d,reuseaddr,fork", local_port);
+		snprintf(arg2, 256, "ssl:%s:%d,cafile=%s,verify=1", server_name, server_port, CERT);
+		execlp("socat", "client_tun", arg1, arg2, NULL);
+
+		printf("Failed to exec!\n");
+		exit(1);
+
+	//	char cmd[1024];
+	//	snprintf(cmd, 1024, "socat -v tcp4-listen:%d,reuseaddr,fork ssl:%s:%d,cafile=%s,verify=1 2>socat.log", local_port, server_name, server_port, CERT);
+	//	system(cmd);
+	//	return 0;
 	}
 	sleep(1);
 	
@@ -269,13 +280,14 @@ int worker_loop(int sock)
             if( poll_list[1].revents & POLLIN )
             {
                 //handle keyboard input
-                if( handle_input(sock) == -1 ) break;
+                if( handle_input(sock) == 1 ) break;
             }
             
         }
     }
 
 	close( sock );
+	kill(child, SIGKILL);
 	return 0;
 }
 
@@ -323,7 +335,8 @@ int server_loop(int sock)
 
 					case MSG_FAILED:
 						// panic
-						exit(1);
+						delete_msg( msg );
+						goto out;
 						break;
 
 					// TODO add file upload and deletion options
@@ -334,9 +347,11 @@ int server_loop(int sock)
         }
 	}
 		
+out:
 	// log out from main server
 	send_msg(sock, create_msg(QUIT, user_id, -1, -1, NULL));
 	close(sock);
+	kill(child, SIGKILL);
 	return worker_port;
 }
 
@@ -351,13 +366,12 @@ int main()
 	while( !port_free(hport) ) hport++;
 	int client_sock = setup_ssl_connect(hport++, SERVER_NAME, PPORT);
 	int worker_port = server_loop(client_sock);
-		
+
 	if( !worker_port ) return 0;
 
 	while( !port_free(hport) ) hport++;
 	client_sock = setup_ssl_connect(hport++, SERVER_NAME, worker_port);
 	worker_loop( client_sock );
 
-    close( client_sock );
 	return 0;
 }

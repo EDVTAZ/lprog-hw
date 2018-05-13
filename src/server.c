@@ -17,6 +17,7 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #define PPORT 8888
 #define MAX_CLIENTS 5
@@ -36,10 +37,37 @@ int clients[MAX_CLIENTS+1] = {0};
 char *names[] = {"balzs", "gbor", "pisti"};
 char *passes[] = {"password", "12345", "degec"};
 
-int worker_ports[MAX_WORKERS+1];
+#define PORT_IDX 0
+#define PID_IDX 0
+int workers[MAX_WORKERS+1][2] = {0};
+int socat_pid = 0;
 #define MANAGED_FILE_NO 3
 char *files[] = {"", "testfile0", "testfile1", "testfile2"};
 buffer* buf;
+
+// handle shutdown
+void handle_shutdown(int sig)
+{
+	// can't print in handler... printf("Got signal %s, shutting down!\n", sig);
+	//notify clients that server is shutting down TODO
+	//send signal to workers
+	if(mode == SERVER_MODE)
+	{
+		for(int i=0; i<=MAX_WORKERS; i++)
+		{
+			if( workers[i][PORT_IDX] )
+				kill( workers[i][PORT_IDX], sig);
+		}
+	}
+
+	//terminate socat tunnel
+	if( socat_pid )
+		kill( socat_pid, SIGKILL );
+
+	//close sockets TODO
+	
+	exit(0);
+}
 
 int port_free(int port)
 {
@@ -139,12 +167,21 @@ int setup_ssl_listen(int local_port, int public_port)
         poll_list[i].events = POLLIN;
     }
 
-	if( fork() == 0 )
+	socat_pid = fork();
+	if( socat_pid == 0 )
 	{
-		char cmd[1024];
-		snprintf(cmd, 1024, "socat -v openssl-listen:%d,cert=%s,key=%s,verify=0,reuseaddr,fork tcp4:localhost:%d", public_port, CERT, KEY, local_port);
-		system(cmd);
-		return 0;
+		char arg1[256], arg2[256];
+		snprintf(arg1, 256, "openssl-listen:%d,cert=%s,key=%s,verify=0,reuseaddr,fork", public_port, CERT, KEY);
+		snprintf(arg2, 256, "tcp4:localhost:%d", local_port);
+		execlp("socat", "serv_tun", arg1, arg2, NULL);
+
+		printf("Failed to exec!\n");
+		exit(1);
+
+	//	char cmd[1024];
+	//	snprintf(cmd, 1024, "socat -v openssl-listen:%d,cert=%s,key=%s,verify=0,reuseaddr,fork tcp4:localhost:%d", public_port, CERT, KEY, local_port);
+	//	system(cmd);
+	//	return 0;
 	}
 
 	return sock;
@@ -239,14 +276,15 @@ int get_worker(int file_id)
 	// fork is called inside, returns with the public port of the worker that clients should connect to
 	// if worker for the file already exists this doesn't do anything (except return the correct port)
 
-	if( worker_ports[file_id] ) return worker_ports[file_id];
+	if( workers[file_id][PORT_IDX] ) return workers[file_id][PORT_IDX];
 
 	while( !port_free(hport) ) hport++;
 	int lp = hport++;
 	while( !port_free(hport) ) hport++;
 	int pp = hport++;
 
-	if( fork()==0 )
+	workers[file_id][PID_IDX] = fork();
+	if( workers[file_id][PID_IDX]==0 )
 	{
 		mode = WORKER_MODE;
 
@@ -270,7 +308,7 @@ int get_worker(int file_id)
 		exit(0);
 	}
 
-	worker_ports[file_id] = pp;
+	workers[file_id][PORT_IDX] = pp;
 	return pp;
 }
 
@@ -451,6 +489,8 @@ int handle_msg( int socket, message* msg )
 
 int main()
 {
+	signal(SIGINT, handle_shutdown);
+
 	mode = SERVER_MODE;
 	int server_sock = setup_ssl_listen(hport++, PPORT);
 	server_listen(server_sock);
