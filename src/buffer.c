@@ -691,7 +691,7 @@ BRES bcursor_insert_line(buffer* b, int id){
     if(ll->on_screen)
 	{
 		buffer_trim(b, ll);
-		if(c == b->own_curs) buffer_scroll(b, UP);
+		//if(c == b->own_curs) buffer_scroll(b, UP);
 	}
 
     //c->own_line = c->own_line->next;

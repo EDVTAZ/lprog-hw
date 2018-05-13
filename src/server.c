@@ -389,9 +389,9 @@ int handle_msg( int socket, message* msg )
 			case FILE_REQUEST:
 				payload = buffer_serialize(buf);
 				printf("%s\n", payload);
-				send_msg(socket, create_msg(FILE_RESPONSE, user_id, msg->file_id, msg->file_version, payload));
-				bcursor_copy_own(buf, user_id);
-				send_msg_everyone(socket, create_msg(ADD_CURSOR, user_id, msg->file_id, msg->file_version, NULL));
+				send_msg(socket, create_msg(FILE_RESPONSE, msg->user_id, msg->file_id, msg->file_version, payload));
+				bcursor_copy_own(buf, msg->user_id);
+				send_msg_everyone(socket, create_msg(ADD_CURSOR, msg->user_id, msg->file_id, msg->file_version, NULL));
 				break;
 			
 			//handle logout
