@@ -17,7 +17,7 @@
 #include <poll.h>
 #include <fcntl.h>
 
-#define SERVER_NAME "152.66.158.89"
+#define SERVER_NAME "localhost"
 #define LOCALHOST "127.0.0.1"
 #define CERT "b.crt"
 #define PPORT 8888
