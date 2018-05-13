@@ -512,7 +512,7 @@ int handle_msg( int socket, message* msg )
 	int port;
     CMOVE_DIR dir;
 
-	if( !logged_in(msg->user_id) && msg->type != LOGIN && msg->type != REGISTER )
+	if( !logged_in(msg->user_id) && (msg->type != LOGIN && msg->type != REGISTER) )
 	{
 		printf("User not logged in: %d", msg->user_id);
 		close_socket(socket);
@@ -528,7 +528,7 @@ int handle_msg( int socket, message* msg )
 			case LOGIN:
 				//printf("%s ==\n", msg->payload);
 				user_id = validate_user(msg->payload);
-				if (user_id)
+				if (user_id >= 0)
 				{
                                         //TODO:
 					char *pretty_file_list = malloc( 1024 );
@@ -538,6 +538,7 @@ int handle_msg( int socket, message* msg )
 				}
 				else
 				{
+					printf("Login failed (%s - %s)\n", msg->payload);
 					send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
 				}
 				break;
@@ -545,7 +546,7 @@ int handle_msg( int socket, message* msg )
 			//handle sign up
 			case REGISTER:
 				user_id = validate_register(msg->payload);
-				if (user_id)
+				if (user_id >= 0)
 				{
 					send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
 				}else
@@ -556,7 +557,6 @@ int handle_msg( int socket, message* msg )
 				
 			//reply the requested file
 			case FILE_REQUEST:
-				fflush(stdout);
 				port = get_worker(msg->file_id);
 				
 				payload = malloc(24);
@@ -594,7 +594,7 @@ int handle_msg( int socket, message* msg )
 			//handle sign in
 			case LOGIN:
 				user_id = validate_user(msg->payload);
-				if (user_id)
+				if (user_id >= 0)
 				{
 					send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
 				}
