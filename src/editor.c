@@ -30,6 +30,7 @@ char username[12], userpassword[12];
 int file_id = 0;
 int child;
 buffer* b;
+int reg = 0;
 
 int hport = 64957;
 struct pollfd poll_list[2];
@@ -86,11 +87,6 @@ int setup_ssl_connect(int local_port, char *server_name, int server_port)
 
 		printf("Failed to exec!\n");
 		exit(1);
-
-	//	char cmd[1024];
-	//	snprintf(cmd, 1024, "socat -v tcp4-listen:%d,reuseaddr,fork ssl:%s:%d,cafile=%s,verify=1 2>socat.log", local_port, server_name, server_port, CERT);
-	//	system(cmd);
-	//	return 0;
 	}
 	sleep(1);
 	
@@ -296,7 +292,9 @@ int server_loop(int sock)
 	int worker_port=0;
 	int quit=0;
 	char *payload = create_login_payload(username, userpassword);
-    message* msg = create_msg(LOGIN, -1, -1, -1, payload);
+	message* msg;
+    if(reg) msg = create_msg(REGISTER, -1, -1, -1, payload);
+	else 	msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
 
 	while( !quit )
@@ -323,9 +321,11 @@ int server_loop(int sock)
 				{
 					case MSG_OK:
 						user_id = msg->user_id;
-						printf("%s\n\nType the number of the file you would like to edit! \n", msg->payload);
+						printf("%s\n\nType the number of the file you would like to edit! (0 for new file, -x for deleting file x)\n", msg->payload);
 						scanf("%d", &file_id);
-						send_msg(sock, create_msg(FILE_REQUEST, user_id, file_id, -1, NULL));
+						if(file_id < 0) send_msg(sock, create_msg(DELETE_FILE, user_id, file_id, -1, NULL));
+						if(file_id > 0) send_msg(sock, create_msg(FILE_REQUEST, user_id, file_id, -1, NULL));
+						if(  !file_id ) send_msg(sock, create_msg(CREATE_FILE, user_id, file_id, -1, NULL));
 						break;
 
 					case FILE_RESPONSE:
@@ -335,11 +335,10 @@ int server_loop(int sock)
 
 					case MSG_FAILED:
 						// panic
+						printf("Login/register failed, terminating!\n");
 						delete_msg( msg );
 						goto out;
 						break;
-
-					// TODO add file upload and deletion options
 				}
 
 				delete_msg( msg );
@@ -357,6 +356,14 @@ out:
 
 int main()
 {
+	char yn;
+	printf("Do you have an account? [y/n] ");
+	scanf("%c", yn);
+	if( yn == 'n')
+	{
+		printf("Please register!\n");
+		reg = 1;
+	}
 	printf("Username: ");
 	scanf("%11s", username);
 	printf("Password: ");
