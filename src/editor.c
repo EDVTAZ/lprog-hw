@@ -37,18 +37,18 @@ struct pollfd poll_list[2];
 
 int port_free(int port)
 {
-	// tests if port is free to use
-	// ret: 1 if yes 0 if no
+    // tests if port is free to use
+    // ret: 1 if yes 0 if no
 
-	int sock;
+    int sock;
     socklen_t addrlen;
     struct sockaddr_in address;
     
     // create server socket
     if( (sock=socket( AF_INET, SOCK_STREAM, 0 )) < 0 )
     {
-		perror( "socket" );
-		return 0;
+        perror( "socket" );
+        return 0;
     }
     //set family, address, port
     memset( &address, 0, sizeof( address ) );
@@ -62,34 +62,34 @@ int port_free(int port)
     if(bind(sock, (struct sockaddr *)&address, addrlen) < 0)
     {
         perror( "bind" );
-		close( sock );
+        close( sock );
         return 0;
     }
-	
-	close( sock );
-	return 1;
-	
+    
+    close( sock );
+    return 1;
+    
 }
 
 int setup_ssl_connect(int local_port, char *server_name, int server_port)
 {
-	printf("server port: %d\n", server_port);
-	printf("server name: %s\n", server_name);
-	printf("local port: %d\n", local_port);
-	// connects to server through socat ssl tunnel
-	child = fork();
-	if( child == 0 )
-	{
-		char arg1[256], arg2[256];
-		snprintf(arg1, 256, "tcp4-listen:%d,reuseaddr,fork", local_port);
-		snprintf(arg2, 256, "ssl:%s:%d,cafile=%s,verify=1", server_name, server_port, CERT);
-		execlp("socat", "client_tun", arg1, arg2, NULL);
+    printf("server port: %d\n", server_port);
+    printf("server name: %s\n", server_name);
+    printf("local port: %d\n", local_port);
+    // connects to server through socat ssl tunnel
+    child = fork();
+    if( child == 0 )
+    {
+        char arg1[256], arg2[256];
+        snprintf(arg1, 256, "tcp4-listen:%d,reuseaddr,fork", local_port);
+        snprintf(arg2, 256, "ssl:%s:%d,cafile=%s,verify=1", server_name, server_port, CERT);
+        execlp("socat", "client_tun", arg1, arg2, NULL);
 
-		printf("Failed to exec!\n");
-		exit(1);
-	}
-	sleep(1);
-	
+        printf("Failed to exec!\n");
+        exit(1);
+    }
+    sleep(1);
+    
     size_t addrlen;
     struct sockaddr_in address;
     int sock;
@@ -115,7 +115,7 @@ int setup_ssl_connect(int local_port, char *server_name, int server_port)
         perror( "connect" );
         return -1;
     }
-	return sock;
+    return sock;
 }
 
 char *create_login_payload(char *name, char *pass)
@@ -161,14 +161,14 @@ int handle_msg(int sock, message* msg)
             bcursor_del(b, msg->user_id);
             break;
         case MOVE_CURSOR:
-			if(msg->payload[0] == '0')
-				dir = UP;
-			if(msg->payload[0] == '1')
-				dir = DOWN;
-			if(msg->payload[0] == '2')
-				dir = LEFT;
-			if(msg->payload[0] == '3')
-				dir = RIGHT;
+            if(msg->payload[0] == '0')
+                dir = UP;
+            if(msg->payload[0] == '1')
+                dir = DOWN;
+            if(msg->payload[0] == '2')
+                dir = LEFT;
+            if(msg->payload[0] == '3')
+                dir = RIGHT;
             bcursor_move(b, msg->user_id, dir);
             break;
         case ADD_CURSOR:
@@ -187,37 +187,37 @@ int handle_msg(int sock, message* msg)
 
 int handle_input(int sock)
 {
-	int quit = 0;
+    int quit = 0;
     
     //read keyboard input
     int c = getch();
-	char* cc = NULL;
+    char* cc = NULL;
     
     switch(c){
         case KEY_LEFT:
-			cc = malloc(2);
-			cc[0]='2'; cc[1]=0;
+            cc = malloc(2);
+            cc[0]='2'; cc[1]=0;
             send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
             bcursor_move(b, OWN_CURS_ID, LEFT);
             break;
             
         case KEY_RIGHT:
-			cc = malloc(2);
-			cc[0]='3'; cc[1]=0;
+            cc = malloc(2);
+            cc[0]='3'; cc[1]=0;
             send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
             bcursor_move(b, OWN_CURS_ID, RIGHT);
             break;
 
         case KEY_UP:
-			cc = malloc(2);
-			cc[0]='0'; cc[1]=0;
+            cc = malloc(2);
+            cc[0]='0'; cc[1]=0;
             send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
             bcursor_move(b, OWN_CURS_ID, UP);
             break;
 
         case KEY_DOWN:
-			cc = malloc(2);
-			cc[0]='1'; cc[1]=0;
+            cc = malloc(2);
+            cc[0]='1'; cc[1]=0;
             send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
             bcursor_move(b, OWN_CURS_ID, DOWN);
             break;
@@ -239,20 +239,20 @@ int handle_input(int sock)
             break;
 
         default:
-			cc = malloc(2);
-			cc[0]=c; cc[1]=0;
+            cc = malloc(2);
+            cc[0]=c; cc[1]=0;
             send_msg(sock, create_msg(INSERT, user_id, b->id, b->ver++, cc));
             bcursor_insert(b, OWN_CURS_ID, c);
     }
 
-	return quit;
+    return quit;
 }
 
 int worker_loop(int sock)
 {
-	// log in to worker
-	char *payload = create_login_payload(username, userpassword);
-	//printf(payload);
+    // log in to worker
+    char *payload = create_login_payload(username, userpassword);
+    //printf(payload);
     message *msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
 
@@ -282,23 +282,23 @@ int worker_loop(int sock)
         }
     }
 
-	close( sock );
-	kill(child, SIGKILL);
-	return 0;
+    close( sock );
+    kill(child, SIGKILL);
+    return 0;
 }
 
 int server_loop(int sock)
 {
-	int worker_port=0;
-	int quit=0;
-	char *payload = create_login_payload(username, userpassword);
-	message* msg;
+    int worker_port=0;
+    int quit=0;
+    char *payload = create_login_payload(username, userpassword);
+    message* msg;
     if(reg) msg = create_msg(REGISTER, -1, -1, -1, payload);
-	else 	msg = create_msg(LOGIN, -1, -1, -1, payload);
+    else     msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
 
-	while( !quit )
-	{
+    while( !quit )
+    {
         //set poll list
         poll_list[0].fd = sock;
         poll_list[0].events = POLLIN;
@@ -310,75 +310,75 @@ int server_loop(int sock)
             //handle server socket message
             if( poll_list[0].revents & POLLIN )
             {
-				msg = recv_msg( sock );
-				if( !msg )
-				{
-					//printf("Null msg received\n");
-					continue;
-				}
+                msg = recv_msg( sock );
+                if( !msg )
+                {
+                    //printf("Null msg received\n");
+                    continue;
+                }
 
-				switch( msg->type )
-				{
-					case MSG_OK:
-						user_id = msg->user_id;
-						printf("%s\n\nType the number of the file you would like to edit! (0 for new file, -x for deleting file x)\n", msg->payload);
-						scanf("%d", &file_id);
-						if(file_id < 0) send_msg(sock, create_msg(DELETE_FILE, user_id, file_id, -1, NULL));
-						if(file_id > 0) send_msg(sock, create_msg(FILE_REQUEST, user_id, file_id, -1, NULL));
-						if(  !file_id ) send_msg(sock, create_msg(CREATE_FILE, user_id, file_id, -1, NULL));
-						break;
+                switch( msg->type )
+                {
+                    case MSG_OK:
+                        user_id = msg->user_id;
+                        printf("%s\n\nType the number of the file you would like to edit! (0 for new file, -x for deleting file x)\n", msg->payload);
+                        scanf("%d", &file_id);
+                        if(file_id < 0) send_msg(sock, create_msg(DELETE_FILE, user_id, file_id, -1, NULL));
+                        if(file_id > 0) send_msg(sock, create_msg(FILE_REQUEST, user_id, file_id, -1, NULL));
+                        if(  !file_id ) send_msg(sock, create_msg(CREATE_FILE, user_id, file_id, -1, NULL));
+                        break;
 
-					case FILE_RESPONSE:
-						sscanf(msg->payload, "M%d", &worker_port);
-						quit = 1;
-						break;
+                    case FILE_RESPONSE:
+                        sscanf(msg->payload, "M%d", &worker_port);
+                        quit = 1;
+                        break;
 
-					case MSG_FAILED:
-						// panic
-						printf("Login/register failed, terminating!\n");
-						delete_msg( msg );
-						goto out;
-						break;
-				}
+                    case MSG_FAILED:
+                        // panic
+                        printf("Login/register failed, terminating!\n");
+                        delete_msg( msg );
+                        goto out;
+                        break;
+                }
 
-				delete_msg( msg );
+                delete_msg( msg );
             }
         }
-	}
-		
+    }
+        
 out:
-	// log out from main server
-	send_msg(sock, create_msg(QUIT, user_id, -1, -1, NULL));
-	close(sock);
-	kill(child, SIGKILL);
-	return worker_port;
+    // log out from main server
+    send_msg(sock, create_msg(QUIT, user_id, -1, -1, NULL));
+    close(sock);
+    kill(child, SIGKILL);
+    return worker_port;
 }
 
 int main()
 {
-	char yn;
-	printf("Do you have an account? [y/n] ");
-	scanf("%c", yn);
-	if( yn == 'n')
-	{
-		printf("Please register!\n");
-		reg = 1;
-	}
-	printf("Username: ");
-	scanf("%11s", username);
-	printf("Password: ");
-	scanf("%11s", userpassword);
+    char yn;
+    printf("Do you have an account? [y/n] ");
+    scanf("%c", yn);
+    if( yn == 'n')
+    {
+        printf("Please register!\n");
+        reg = 1;
+    }
+    printf("Username: ");
+    scanf("%11s", username);
+    printf("Password: ");
+    scanf("%11s", userpassword);
 
-	// log in to main server
-	while( !port_free(hport) ) hport++;
-	int client_sock = setup_ssl_connect(hport++, SERVER_NAME, PPORT);
-	int worker_port = server_loop(client_sock);
+    // log in to main server
+    while( !port_free(hport) ) hport++;
+    int client_sock = setup_ssl_connect(hport++, SERVER_NAME, PPORT);
+    int worker_port = server_loop(client_sock);
 
-	if( !worker_port ) return 0;
+    if( !worker_port ) return 0;
 
-	while( !port_free(hport) ) hport++;
-	client_sock = setup_ssl_connect(hport++, SERVER_NAME, worker_port);
-	worker_loop( client_sock );
+    while( !port_free(hport) ) hport++;
+    client_sock = setup_ssl_connect(hport++, SERVER_NAME, worker_port);
+    worker_loop( client_sock );
 
-	return 0;
+    return 0;
 }

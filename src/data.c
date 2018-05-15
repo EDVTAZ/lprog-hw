@@ -38,8 +38,8 @@ int validate_user(char *payload)
     JSON_Value *root_value = json_parse_string(payload);
     JSON_Object *root_object = json_value_get_object(root_value);
 
-	const char *name = json_object_get_string(root_object, "name");
-	const char *pass = json_object_get_string(root_object, "pass");
+    const char *name = json_object_get_string(root_object, "name");
+    const char *pass = json_object_get_string(root_object, "pass");
 
     char* username;
     char* password;
@@ -51,8 +51,8 @@ int validate_user(char *payload)
     FILE * fp = fopen("userdata.txt", "r");
     if (fp == NULL){
         perror("userdata open");
-		//free json
-		json_value_free(root_value);
+        //free json
+        json_value_free(root_value);
         return -2;
     }
     
