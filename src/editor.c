@@ -358,7 +358,7 @@ int main()
 {
     char yn;
     printf("Do you have an account? [y/n] ");
-    scanf("%c", yn);
+    scanf("%c", &yn);
     if( yn == 'n')
     {
         printf("Please register!\n");

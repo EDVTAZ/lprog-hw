@@ -59,6 +59,14 @@ void handle_shutdown(int sig)
                 kill( workers[i][PORT_IDX], sig);
         }
     }
+    // save files before closing
+    if(mode == WORKER_MODE)
+    {
+        if(buf)
+        {
+            buffer_save( getFileName(buf->id), buf );
+        }
+    }
 
     //terminate socat tunnel
     if( socat_pid )
@@ -297,7 +305,7 @@ int get_worker(int file_id)
 
         // init buffer
         //buf = buffer_from_file( files[file_id], file_id, HEIGHT, WIDTH, 0);
-                buf = buffer_from_file( getFileName(file_id), file_id, HEIGHT, WIDTH, 0);
+        buf = buffer_from_file( getFileName(file_id), file_id, HEIGHT, WIDTH, 0);
                 
         // start listening
         int worker_sock = setup_ssl_listen(lp, pp);
