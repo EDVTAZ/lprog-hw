@@ -1,11 +1,52 @@
-#include <data.h>
+#include <utilities.h>
 #include <parson.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+//TODO: import optimalization
 
+// tests if port is free to use
+// ret: 1 if yes 0 if no
+int port_free(int port)
+{
+    int sock;
+    socklen_t addrlen;
+    struct sockaddr_in address;
+    
+    // create server socket
+    if( (sock=socket( AF_INET, SOCK_STREAM, 0 )) < 0 )
+    {
+        perror( "socket" );
+        return 0;
+    }
+    //set family, address, port
+    memset( &address, 0, sizeof( address ) );
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons( port );
+    //count address length
+    addrlen = sizeof(address);
+
+    //bind socket to the addres
+    if(bind(sock, (struct sockaddr *)&address, addrlen) < 0)
+    {
+        perror( "bind" );
+        close( sock );
+        return 0;
+    }
+    
+    close( sock );
+    return 1;
+    
+}
 
 //replace \n to 0
 char* terminateNull(char* s)
@@ -178,7 +219,7 @@ int createFile(char* filename)
     return file_id;
 }
 
-
+//delete file + delete filename from files.txt
 int deleteFile(int file_id)
 {
     char * line_copy;
@@ -274,6 +315,32 @@ char* getFileName(int file_id)
     //close file
     fclose(fp);
     return NULL;
+}
+
+//returns the available files
+char* getFileList(){
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    
+    //TODO: without magic number
+    char* buf = malloc(1024);
+
+    //open file
+    FILE * fp = fopen("files.txt", "r");
+    if (fp == NULL){
+        perror("files open");
+    }
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+        strcat(buf, line);
+    }
+
+    return buf;
+
+    // char *pretty_file_list = malloc( 1024 );
+    // snprintf(pretty_file_list, 1024, "1 - %s\n2 - %s\n3 - %s", getFileName(1), getFileName(2), getFileName(3));
+    // return pretty_file_list;
 }
 
 //TODO: check if user already has access

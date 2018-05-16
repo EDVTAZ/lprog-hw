@@ -1,5 +1,9 @@
-#ifndef data_h
-#define data_h
+#ifndef utilities_h
+#define utilities_h
+
+// tests if port is free to use
+// ret: 1 if yes 0 if no
+int port_free(int port);
 
 //replace \n to 0
 char* terminateNull(char* s);
@@ -22,6 +26,9 @@ int deleteFile(int file_id);
 
 //return filename
 char* getFileName(int file_id);
+
+//returns the available files
+char* getFileList();
 
 //add user data to file_id
 int addFileToUser(int file_id, int user_id);

@@ -1,6 +1,6 @@
 #include <buffer.h>
 #include <msg.h>
-#include <data.h>
+#include <utilities.h>
 
 #include <parson.h>
 
@@ -75,42 +75,6 @@ void handle_shutdown(int sig)
     //close sockets TODO
     
     exit(0);
-}
-
-int port_free(int port)
-{
-    // tests if port is free to use
-    // ret: 1 if yes 0 if no
-
-    int sock;
-    socklen_t addrlen;
-    struct sockaddr_in address;
-    
-    // create server socket
-    if( (sock=socket( AF_INET, SOCK_STREAM, 0 )) < 0 )
-    {
-        perror( "socket" );
-        return 0;
-    }
-    //set family, address, port
-    memset( &address, 0, sizeof( address ) );
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( port );
-    //count address length
-    addrlen = sizeof(address);
-
-    //bind socket to the addres
-    if(bind(sock, (struct sockaddr *)&address, addrlen) < 0)
-    {
-        perror( "bind" );
-        close( sock );
-        return 0;
-    }
-    
-    close( sock );
-    return 1;
-    
 }
 
 //TODO
@@ -332,6 +296,8 @@ int handle_msg( int socket, message* msg )
     
     char* payload; 
     int user_id;
+    int file_id;
+    int err;
     int port;
     CMOVE_DIR dir;
 
@@ -355,11 +321,7 @@ int handle_msg( int socket, message* msg )
                 {
                     //TODO
                     clients[user_id] = 1;
-                                        //TODO:
-                    char *pretty_file_list = malloc( 1024 );
-                    //snprintf(pretty_file_list, 1024, "1 - %s\n2 - %s\n3 - %s", files[1], files[2], files[3]);
-                                        snprintf(pretty_file_list, 1024, "1 - %s\n2 - %s\n3 - %s", getFileName(1), getFileName(2), getFileName(3));
-                    send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, pretty_file_list));
+                    send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, getFileList()));
                 }
                 else
                 {
@@ -391,13 +353,24 @@ int handle_msg( int socket, message* msg )
                 break;
                 
             case CREATE_FILE:
-                    //TODO
-                    //file_id = (msg->payload);
+                    file_id = createFile(msg->payload);
+                    if(file_id > 0){
+                        send_msg(socket, create_msg(MSG_OK, msg->user_id, -1, -1, getFileList()));
+                    }else if(file_id == -1){
+                        send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, "File already exist"));
+                    }else{
+                        send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, "Oops! Something went wrong."));
+                    }
                     break;
 
             //delete the defined file from server
             case DELETE_FILE:
-                // TODO !!
+                err = deleteFile(msg->file_id);
+                if(err == 0){
+                    send_msg(socket, create_msg(MSG_OK, msg->user_id, -1, -1, getFileList()));
+                }else{
+                    send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, "Oops! Something went wrong."));
+                }
                 break;
                 
             //handle logout

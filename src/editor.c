@@ -1,5 +1,6 @@
 #include <msg.h>
 #include <buffer.h>
+#include <utilities.h>
 
 #include <parson.h>
 #include <ncurses.h>
@@ -34,42 +35,6 @@ int reg = 0;
 
 int hport = 64957;
 struct pollfd poll_list[2];
-
-int port_free(int port)
-{
-    // tests if port is free to use
-    // ret: 1 if yes 0 if no
-
-    int sock;
-    socklen_t addrlen;
-    struct sockaddr_in address;
-    
-    // create server socket
-    if( (sock=socket( AF_INET, SOCK_STREAM, 0 )) < 0 )
-    {
-        perror( "socket" );
-        return 0;
-    }
-    //set family, address, port
-    memset( &address, 0, sizeof( address ) );
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( port );
-    //count address length
-    addrlen = sizeof(address);
-
-    //bind socket to the addres
-    if(bind(sock, (struct sockaddr *)&address, addrlen) < 0)
-    {
-        perror( "bind" );
-        close( sock );
-        return 0;
-    }
-    
-    close( sock );
-    return 1;
-    
-}
 
 int setup_ssl_connect(int local_port, char *server_name, int server_port)
 {
@@ -323,8 +288,9 @@ int server_loop(int sock)
                         user_id = msg->user_id;
                         printf("%s\n\nType the number of the file you would like to edit! (0 for new file, -x for deleting file x)\n", msg->payload);
                         scanf("%d", &file_id);
-                        if(file_id < 0) send_msg(sock, create_msg(DELETE_FILE, user_id, file_id, -1, NULL));
+                        if(file_id < 0) send_msg(sock, create_msg(DELETE_FILE, user_id, (-1)*file_id, -1, NULL));
                         if(file_id > 0) send_msg(sock, create_msg(FILE_REQUEST, user_id, file_id, -1, NULL));
+                        //TODO: payload = filename
                         if(  !file_id ) send_msg(sock, create_msg(CREATE_FILE, user_id, file_id, -1, NULL));
                         break;
 
