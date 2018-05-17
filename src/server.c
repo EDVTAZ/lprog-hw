@@ -38,7 +38,7 @@ char *names[] = {"balzs", "gbor", "pisti"};
 char *passes[] = {"password", "12345", "degec"};
 
 #define PORT_IDX 0
-#define PID_IDX 0
+#define PID_IDX 1
 int workers[MAX_WORKERS+1][2] = {0};
 int socat_pid = 0;
 #define MANAGED_FILE_NO 3
@@ -56,7 +56,7 @@ void handle_shutdown(int sig)
         for(int i=0; i<=MAX_WORKERS; i++)
         {
             if( workers[i][PORT_IDX] )
-                kill( workers[i][PORT_IDX], sig);
+                kill( workers[i][PID_IDX], sig);
         }
     }
     // save files before closing

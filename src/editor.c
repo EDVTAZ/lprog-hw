@@ -258,6 +258,7 @@ int server_loop(int sock)
     int quit=0;
     char *payload = create_login_payload(username, userpassword);
     message* msg;
+    char *fname;
     if(reg) msg = create_msg(REGISTER, -1, -1, -1, payload);
     else     msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
@@ -286,12 +287,17 @@ int server_loop(int sock)
                 {
                     case MSG_OK:
                         user_id = msg->user_id;
-                        printf("%s\n\nType the number of the file you would like to edit! (0 for new file, -x for deleting file x)\n", msg->payload);
+                        printf("%s\n\nType the number of the file you would like to edit! (0 for new file, -x for deleting file x) ", msg->payload);
                         scanf("%d", &file_id);
                         if(file_id < 0) send_msg(sock, create_msg(DELETE_FILE, user_id, (-1)*file_id, -1, NULL));
                         if(file_id > 0) send_msg(sock, create_msg(FILE_REQUEST, user_id, file_id, -1, NULL));
-                        //TODO: payload = filename
-                        if(  !file_id ) send_msg(sock, create_msg(CREATE_FILE, user_id, file_id, -1, NULL));
+                        if(  !file_id )
+                        {
+                            fname = malloc(64);
+                            printf("Type the new files name: ");
+                            scanf("%63s", fname);
+                            send_msg(sock, create_msg(CREATE_FILE, user_id, file_id, -1, fname));
+                        }
                         break;
 
                     case FILE_RESPONSE:
