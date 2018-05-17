@@ -28,19 +28,25 @@
 #define HEIGHT 20
 #define WIDTH 20
 
+// mode of the current process
 enum {SERVER_MODE, WORKER_MODE} mode;
+// highport for socat and workers to use
 int hport = 46957;
 
 struct pollfd poll_list[MAX_CLIENTS+1];
+// whether client is logged in
 int clients[MAX_CLIENTS+1] = {0};
 #define REGISTERED_CLIENTS 3
 char *names[] = {"balzs", "gbor", "pisti"};
 char *passes[] = {"password", "12345", "degec"};
 
+// workers management information (port,pid)
 #define PORT_IDX 0
 #define PID_IDX 1
 int workers[MAX_WORKERS+1][2] = {0};
+// socat childs pid
 int socat_pid = 0;
+
 #define MANAGED_FILE_NO 3
 char *files[] = {"", "testfile0", "testfile1", "testfile2"};
 buffer* buf;
@@ -139,6 +145,7 @@ int setup_ssl_listen(int local_port, int public_port)
         poll_list[i].events = POLLIN;
     }
 
+    // fork socat tunnel
     socat_pid = fork();
     if( socat_pid == 0 )
     {
@@ -176,6 +183,7 @@ void close_socket(int socket)
 }
 
 int handle_msg( int socket, message* msg );
+// main server mode listen
 int server_listen(int sock)
 {
     int new_socket;
@@ -248,13 +256,16 @@ int get_worker(int file_id)
     // fork is called inside, returns with the public port of the worker that clients should connect to
     // if worker for the file already exists this doesn't do anything (except return the correct port)
 
+    // return with already created worker
     if( workers[file_id][PORT_IDX] ) return workers[file_id][PORT_IDX];
 
+    // find free port
     while( !port_free(hport) ) hport++;
     int lp = hport++;
     while( !port_free(hport) ) hport++;
     int pp = hport++;
 
+    // fork worker; save pid of child
     workers[file_id][PID_IDX] = fork();
     if( workers[file_id][PID_IDX]==0 )
     {
@@ -284,6 +295,7 @@ int get_worker(int file_id)
     return pp;
 }
 
+// handle incoming communication
 int handle_msg( int socket, message* msg )
 {
     if(msg == NULL)
@@ -301,6 +313,7 @@ int handle_msg( int socket, message* msg )
     int port;
     CMOVE_DIR dir;
 
+    // check if user is logged in
     if( !logged_in(msg->user_id) && (msg->type != LOGIN && msg->type != REGISTER) )
     {
         printf("User not logged in: %d", msg->user_id);
@@ -357,9 +370,9 @@ int handle_msg( int socket, message* msg )
                     if(file_id > 0){
                         send_msg(socket, create_msg(MSG_OK, msg->user_id, -1, -1, getFileList()));
                     }else if(file_id == -1){
-                        send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, "File already exist"));
+                        send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
                     }else{
-                        send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, "Oops! Something went wrong."));
+                        send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
                     }
                     break;
 
@@ -369,7 +382,7 @@ int handle_msg( int socket, message* msg )
                 if(err == 0){
                     send_msg(socket, create_msg(MSG_OK, msg->user_id, -1, -1, getFileList()));
                 }else{
-                    send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, "Oops! Something went wrong."));
+                    send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
                 }
                 break;
                 
@@ -470,8 +483,10 @@ int handle_msg( int socket, message* msg )
 
 int main()
 {
+    // set signal handler for graceful shutdown
     signal(SIGINT, handle_shutdown);
 
+    // start main server
     mode = SERVER_MODE;
     int server_sock = setup_ssl_listen(hport++, PPORT);
     server_listen(server_sock);

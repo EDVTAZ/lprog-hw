@@ -13,12 +13,15 @@ typedef struct buffer buffer;
 #define MAX_CURSOR_NUM 20
 #endif
 
+// size of the scratch pad of the buffer
 #define SP_SIZE 2048
 
 // LINE ---------------------------------------------------------------
+
+// line location relative to own_curs
 typedef enum crp {ABOVE, BELLOW, SAME} CRP;
 
-// result ofbuffer operation
+// result of buffer operation -- sadly not used very consequently
 // FAILED: operation failed
 // UPDATE: operation successful, UI update needed
 // SUCCESS: operation successful, no UI updgrade needed
@@ -35,8 +38,9 @@ struct line{
     struct line* prev;
     struct line* next;
 
-    // on screen info
+    // on screen info -- 1 if it is visible 0 if not
     int on_screen;
+    // line location relative to own_curs
     CRP where;
     
 };
@@ -80,7 +84,7 @@ typedef enum cmove_dir{UP, DOWN, LEFT, RIGHT} CMOVE_DIR;
 // move cursor
 CMOVE_RES cursor_move(cursor* c, CMOVE_DIR dir);
 
-// isnert character at cursor location
+// insert character at cursor location
 BRES cursor_insert(cursor* c, char chr);
 
 // delete character at cursor location
@@ -92,9 +96,11 @@ BRES cursor_del(cursor* c);
 struct buffer{
     
     int id;
-    // version of the file
+    // version of the file -- planned to be used to solve race conditions, but not yet used anywhere
     int ver;
+    // number of lines
     int num_lines;
+    // used to generate new line ids -> always increment!!
     int line_id_cnt;
 
     // dimensions of the ui
@@ -112,7 +118,7 @@ struct buffer{
     // cursors
     // own_curs is local, always has id=0
     cursor* own_curs;
-    // this should be in syncrhon across all clients and the server
+    // peer cursors
     cursor* peer_curss[MAX_CURSOR_NUM];
 
     // connected ui
@@ -121,6 +127,7 @@ struct buffer{
     int server_mode;
 
     // scratch pad cstr
+    // can be used at any time as a buffer, since no important data is saved here (not thread safe)
     char sp[SP_SIZE];
 
 };
@@ -138,10 +145,11 @@ int buffer_save(char* fname, buffer* b);
 // deletes buffer
 void buffer_free(buffer* b);
 
-// insert line containing cstr after line with id, with the id new_id
-// cstr shall not contain newline characters and be null terminated
-// if new_id is -1 a new id will be automatically generated
-BRES buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id);
+/////// turns out I never implemented this...
+//// insert line containing cstr after line with id, with the id new_id
+//// cstr shall not contain newline characters and be null terminated
+//// if new_id is -1 a new id will be automatically generated
+//BRES buffer_insertl(buffer* b, char* cstr, int prev_id, int new_id);
 
 // delete line
 BRES buffer_deletel(buffer* b, line* l);
@@ -164,10 +172,10 @@ BRES bcursor_free(buffer* b, int id);
 // move cursor
 BRES bcursor_move(buffer* b, int id, CMOVE_DIR dir);
 
-// isnert character at cursor location
+// insert character at cursor location
 BRES bcursor_insert(buffer* b, int id, char chr);
 
-// isnert new line at cursor location
+// insert new line at cursor location
 // if cursor is at pos 0, it will stay in the line and the new line will be above the current line
 // if the cursor is somewhere else, it will be moved to pos 0 in the new line, and the contents to the right of the cursor will be moved into the new line
 BRES bcursor_insert_line(buffer* b, int id);

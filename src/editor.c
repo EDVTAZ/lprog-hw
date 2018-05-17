@@ -19,28 +19,40 @@
 #include <fcntl.h>
 #include <signal.h>
 
+// EDIT THIS TO SET SERVER REMOTE HOST 
 #define SERVER_NAME "localhost"
+
 #define LOCALHOST "127.0.0.1"
 #define CERT "b.crt"
 #define PPORT 8888
 #define OWN_CURS_ID 0 
 #define KEY_ESC 27
 
+// the user id the server assigned us
 int user_id;
+// username and password supplied by user
 char username[12], userpassword[12];
+// chosen file id
 int file_id = 0;
+// pid of socat child
 int child;
+// current buffer
 buffer* b;
+// whether we are registering
 int reg = 0;
 
+// high port for socat
 int hport = 64957;
+// poll list for network and 
 struct pollfd poll_list[2];
 
+// setup ssl relay listening with tcp4 and connecting with ssl
 int setup_ssl_connect(int local_port, char *server_name, int server_port)
 {
-    printf("server port: %d\n", server_port);
-    printf("server name: %s\n", server_name);
-    printf("local port: %d\n", local_port);
+    //printf("server port: %d\n", server_port);
+    //printf("server name: %s\n", server_name);
+    //printf("local port: %d\n", local_port);
+
     // connects to server through socat ssl tunnel
     child = fork();
     if( child == 0 )
@@ -83,6 +95,7 @@ int setup_ssl_connect(int local_port, char *server_name, int server_port)
     return sock;
 }
 
+// create payload with username and password
 char *create_login_payload(char *name, char *pass)
 {
     JSON_Value *root_value = json_value_init_object( );
@@ -97,6 +110,7 @@ char *create_login_payload(char *name, char *pass)
     return serialized_string;
 }
 
+// handle incoming network message
 int handle_msg(int sock, message* msg)
 {
     CMOVE_DIR dir;
@@ -150,12 +164,14 @@ int handle_msg(int sock, message* msg)
     delete_msg(msg);
 }
 
+// handle keyboard input
 int handle_input(int sock)
 {
     int quit = 0;
     
     //read keyboard input
     int c = getch();
+    // malloc need because send_msg automatically frees payload
     char* cc = NULL;
     
     switch(c){
@@ -213,6 +229,7 @@ int handle_input(int sock)
     return quit;
 }
 
+// loop that handles communication with worker
 int worker_loop(int sock)
 {
     // log in to worker
@@ -248,10 +265,12 @@ int worker_loop(int sock)
     }
 
     close( sock );
+    // kill off unneeded socat tunnel
     kill(child, SIGKILL);
     return 0;
 }
 
+// loop that handles communication with main server
 int server_loop(int sock)
 {
     int worker_port=0;
@@ -260,7 +279,7 @@ int server_loop(int sock)
     message* msg;
     char *fname;
     if(reg) msg = create_msg(REGISTER, -1, -1, -1, payload);
-    else     msg = create_msg(LOGIN, -1, -1, -1, payload);
+    else    msg = create_msg(LOGIN, -1, -1, -1, payload);
     send_msg( sock, msg );
 
     while( !quit )
@@ -322,6 +341,7 @@ out:
     // log out from main server
     send_msg(sock, create_msg(QUIT, user_id, -1, -1, NULL));
     close(sock);
+    // kill off unneeded socat tunnel
     kill(child, SIGKILL);
     return worker_port;
 }
@@ -346,8 +366,10 @@ int main()
     int client_sock = setup_ssl_connect(hport++, SERVER_NAME, PPORT);
     int worker_port = server_loop(client_sock);
 
+    // check if we were successful
     if( !worker_port ) return 0;
 
+    // connect to worker
     while( !port_free(hport) ) hport++;
     client_sock = setup_ssl_connect(hport++, SERVER_NAME, worker_port);
     worker_loop( client_sock );
