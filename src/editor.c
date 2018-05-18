@@ -176,6 +176,7 @@ int handle_input(int sock)
     
     switch(c){
         case KEY_LEFT:
+            //move left
             cc = malloc(2);
             cc[0]='2'; cc[1]=0;
             send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
@@ -183,6 +184,7 @@ int handle_input(int sock)
             break;
             
         case KEY_RIGHT:
+            //move right
             cc = malloc(2);
             cc[0]='3'; cc[1]=0;
             send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
@@ -190,6 +192,7 @@ int handle_input(int sock)
             break;
 
         case KEY_UP:
+            //move up
             cc = malloc(2);
             cc[0]='0'; cc[1]=0;
             send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
@@ -197,6 +200,7 @@ int handle_input(int sock)
             break;
 
         case KEY_DOWN:
+            //move down
             cc = malloc(2);
             cc[0]='1'; cc[1]=0;
             send_msg(sock, create_msg(MOVE_CURSOR, user_id, b->id, b->ver++, cc));
@@ -204,22 +208,26 @@ int handle_input(int sock)
             break;
 
         case KEY_BACKSPACE:
+            //delete character
             send_msg(sock, create_msg(DELETE, user_id, b->id, b->ver++, NULL));
             bcursor_del(b, OWN_CURS_ID);
             break;
             
         case KEY_ESC:
+            //quit
             send_msg(sock, create_msg(QUIT, user_id, b->id, b->ver++, NULL));
             buffer_free(b);
             quit = 1;
             break;
 
         case '\n':
+            //insert new line
             send_msg(sock, create_msg(INSERT_LINE, user_id, b->id, b->ver++, NULL));
             bcursor_insert_line(b, OWN_CURS_ID);
             break;
 
         default:
+            //insert character
             cc = malloc(2);
             cc[0]=c; cc[1]=0;
             send_msg(sock, create_msg(INSERT, user_id, b->id, b->ver++, cc));

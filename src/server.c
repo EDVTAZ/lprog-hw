@@ -83,9 +83,10 @@ void handle_shutdown(int sig)
     exit(0);
 }
 
-//TODO
+//return user logged in or not
 int logged_in(int user_id)
 {
+    //TODO: no userid use index
     return clients[user_id];
 }
 
@@ -243,6 +244,7 @@ int send_msg_everyone( int sender_socket, message* msg )
     int i;
     for( i = 1; i <= MAX_CLIENTS; i++ )
     {
+        //send msg every clients except the sender user
         if( poll_list[i].fd >= 0 && poll_list[i].fd != sender_socket )
         {
             send_msg_without_delete( poll_list[i].fd, msg );
@@ -348,7 +350,7 @@ int handle_msg( int socket, message* msg )
                 user_id = validate_register(msg->payload);
                 if (user_id >= 0)
                 {
-                    send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
+                    send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, getFileList()));
                 }else
                 {
                     send_msg(socket, create_msg(MSG_FAILED, -1, -1, -1, NULL));
@@ -365,6 +367,7 @@ int handle_msg( int socket, message* msg )
                 send_msg(socket, create_msg(FILE_RESPONSE, -1, msg->file_id, msg->file_version, payload));
                 break;
                 
+            //create file
             case CREATE_FILE:
                     file_id = createFile(msg->payload);
                     if(file_id > 0){
@@ -409,7 +412,7 @@ int handle_msg( int socket, message* msg )
                 {
                     //TODO
                     clients[user_id] = 1;
-                    send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, NULL));
+                    send_msg(socket, create_msg(MSG_OK, user_id, -1, -1, getFileList()));
                 }
                 else
                 {

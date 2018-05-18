@@ -64,6 +64,7 @@ message* deserialize_msg( char* serialized_msg )
 //create msg with defined attributes
 message* create_msg( MSG_TYPE type, int user_id, int file_id, int file_version, char* payload )
 {
+    //set the attributes
     message* msg = malloc( sizeof( msg ) );
     msg->type = type;
     msg->user_id = user_id;

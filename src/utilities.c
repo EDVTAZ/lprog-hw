@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <netinet/in.h>
+#include <sys/file.h>
 //TODO: import optimalization
 
 // tests if port is free to use
@@ -64,7 +65,7 @@ char* terminateNull(char* s)
     return s;
 }
 
-//username and password is equivalent
+//is username and password equivalent
 int is_equivalent_strings(const char* a1, const char* a2, const char* b1, const char* b2)
 {
     if(strcmp(a1, a2) == 0 && strcmp(b1, b2) == 0){
@@ -79,6 +80,7 @@ int validate_user(char *payload)
     JSON_Value *root_value = json_parse_string(payload);
     JSON_Object *root_object = json_value_get_object(root_value);
 
+    //get JSON data
     const char *name = json_object_get_string(root_object, "name");
     const char *pass = json_object_get_string(root_object, "pass");
 
@@ -96,25 +98,32 @@ int validate_user(char *payload)
         json_value_free(root_value);
         return -2;
     }
+
+    //lock file
+    int fd = fileno(fp);
+    flock(fd, LOCK_EX);
     
-    //check if username and password is correct
+    //read userdata line by line
     int user_id = 1;
     int val = 0;
     while ((read = getline(&line, &len, fp)) != -1) {
+        //get username and password
         username = strtok (line,":");
         password = strtok (NULL, ":");
+        //check if username and password is correct
         val = (int) is_equivalent_strings(name, username, pass, terminateNull(password));
         if(val) break;
         user_id++;
     }
 
+    //unlock file
+    flock(fd, LOCK_UN);
     //close file
     fclose(fp);
     //free json
     json_value_free(root_value);
     //return when user's data is correct
     if(val) {
-        //clients[user_id] = 1;
         return user_id;
     }
     //return when user's data is incorrect
@@ -127,6 +136,7 @@ int validate_register(char* payload)
     JSON_Value *root_value = json_parse_string(payload);
     JSON_Object *root_object = json_value_get_object(root_value);
 
+    //get JSON data
     const char *name = json_object_get_string(root_object, "name");
     const char *pass = json_object_get_string(root_object, "pass");
     //free json
@@ -144,18 +154,27 @@ int validate_register(char* payload)
         perror("userdata open");
         return -2;
     }
+
+    //lock file
+    int fd = fileno(fp);
+    flock(fd, LOCK_EX);
     
-    //check username exist
+    //read userdata line by line
     int user_id = 1;
     int val = 0;
     while ((read = getline(&line, &len, fp)) != -1) {
+        //get username
         username = strtok (line,":");
-         val = is_equivalent_strings(name, username, "", "");
+        //check username exist
+        val = is_equivalent_strings(name, username, "", "");
         if(val) break;
         user_id++;
     }
     //return when username already exist
     if(val) {
+        //unlock file
+        flock(fd, LOCK_UN);
+        //close file
         fclose(fp);
         return -1;
         
@@ -166,6 +185,8 @@ int validate_register(char* payload)
     }else{
         fprintf(fp, "\n%s:%s", name, pass);
     }
+    //unlock file
+    flock(fd, LOCK_UN);
     //close file
     fclose(fp);
     return user_id;
@@ -186,17 +207,27 @@ int createFile(char* filename)
         perror("files open");
         return -2;
     }
-    //check filename exist
+
+    //lock file
+    int fd = fileno(fp);
+    flock(fd, LOCK_EX);
+
+    //read files line by line
     int file_id = 0;
     int val = 0;  
     while ((read = getline(&line, &len, fp)) != -1) {
+        //get fileid and filename
         file_id = atoi(strtok (line,":"));
         fn = strtok(NULL, ":");
+        //check filename exist
         val = is_equivalent_strings(fn, filename, "", "");
         if(val) break;
     }
     //return when filename already exist
     if(val) {
+        //unlock file
+        flock(fd, LOCK_UN);
+        //close file
         fclose(fp);
         return -1;
         
@@ -207,13 +238,17 @@ int createFile(char* filename)
     }else{
         fprintf(fp, "\n%d:%s", ++file_id, filename);
     }
+
     //create and close file
-    int fd = creat(filename, (mode_t)0664);
-    if (fd == -1) {
+    int filedesc = creat(filename, (mode_t)0664);
+    if (filedesc == -1) {
         perror("file creating");
         return -3;
     }
-    close(fd);
+    close(filedesc);
+
+    //unlock file
+    flock(fd, LOCK_UN);
     //close file
     fclose(fp);
     return file_id;
@@ -239,6 +274,9 @@ int deleteFile(int file_id)
         perror("files_temp.txt open");
         return -3;
     }
+    //lock file
+    int fd_temp = fileno(fp_temp);
+    flock(fd_temp, LOCK_EX);
 
     //create file
     FILE * fp = fopen("files.txt", "w");
@@ -246,6 +284,9 @@ int deleteFile(int file_id)
         perror("files.txt open");
         return -2;
     }
+    //lock file
+    int fd = fileno(fp);
+    flock(fd, LOCK_EX);
     
 
     //count lines from files_tmp.txt
@@ -262,9 +303,12 @@ int deleteFile(int file_id)
     int count = 0;
     while ((read = getline(&line, &len, fp_temp)) != -1) {
         count++;
+        //make a copy
         line_copy = strdup(line);
+        //get fileid
         id = atoi(strtok (line_copy,":"));
         free(line_copy);
+        //write back the filedata
         if(id != file_id){
             if(count != lines_number){
                 fprintf(fp, "%s", line);
@@ -273,6 +317,9 @@ int deleteFile(int file_id)
             }
         }
     }
+    //unlock files
+    flock(fd_temp, LOCK_UN);
+    flock(fd, LOCK_UN);
     //close files
     fclose(fp_temp);
     fclose(fp);
@@ -302,16 +349,28 @@ char* getFileName(int file_id)
     if (fp == NULL){
         perror("files open");
     }
+    
+    //lock file
+    int fd = fileno(fp);
+    flock(fd, LOCK_EX);
+
     //search filename to file_id
     int id = 0;
     while ((read = getline(&line, &len, fp)) != -1) {
+        //get fileid and filename
         id = atoi(strtok (line,":"));
         fn = strtok(NULL, ":");
         if(id == file_id){
+            //unlock file
+            flock(fd, LOCK_UN);
+            //close file
             fclose(fp);
             return terminateNull(fn);
         }
     }
+
+    //unlock file
+    flock(fd, LOCK_UN);
     //close file
     fclose(fp);
     return NULL;
@@ -332,9 +391,19 @@ char* getFileList(){
         perror("files open");
     }
 
+    //lock file
+    int fd = fileno(fp);
+    flock(fd, LOCK_EX);
+
+    //read lines and append to buf
     while ((read = getline(&line, &len, fp)) != -1) {
         strcat(buf, line);
     }
+
+    //unlock file
+    flock(fd, LOCK_UN);
+    //close file
+    fclose(fp);
 
     return buf;
 
@@ -360,6 +429,9 @@ int addFileToUser(int file_id, int user_id)
         perror("userdata_temp.txt open");
         return -3;
     }
+    //lock file
+    int fd_temp = fileno(fp_temp);
+    flock(fd_temp, LOCK_EX);
 
     //create file
     FILE * fp = fopen("userdata.txt", "w");
@@ -367,6 +439,9 @@ int addFileToUser(int file_id, int user_id)
         perror("userdatatxt open");
         return -2;
     }
+    //lock file
+    int fd = fileno(fp);
+    flock(fd, LOCK_EX);
     
     //read userdata from userdata_temp.txt and write to userdata.txt
     int i = 1;
@@ -384,6 +459,10 @@ int addFileToUser(int file_id, int user_id)
         }
         i++;
     }
+
+    //unlock files
+    flock(fd_temp, LOCK_UN);
+    flock(fd, LOCK_UN);
     //close files
     fclose(fp_temp);
     fclose(fp);
