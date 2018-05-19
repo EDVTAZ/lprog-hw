@@ -43,7 +43,64 @@ This is currently a pretty simple solution; when the update function is called, 
 
 A socat relay is started both on client and server side. On client side the relay listens on localhost and connects to the server side over the public network. On server side it's the opposite, meaning it listens for connections on the public interface and connects to the server instance that is listening on localhost. This does allow any other program to also use the ssl tunnel at least on the client side. The socat relays use `ssl`/`ssl-listen` on the public network and `tcp4`/`tcp4-listen` on the localhost. The relays are started by calling `fork` and `exec`.
 
-### msg / network proto (gb)
-TBD
-### utilities (gb)
-TBD
+### server 
+
+The server can be stopped with `C-c`, it handles `SIGINT`, saves open files and notifies clients about the server shutting down.
+
+### msg / network proto
+
+The communication between the server and the clients uses TCP sockets. On server side the activity of the sockets is monitored by the `poll` system call. If there is an incomming message on one of the sockets, we handle the message and reply to it accordingly. On client side we do the same with the only difference being that we monitor the signals coming from `STDIN` and handle the keypresses too.
+
+For the communication between the server and client sockets we created a custom message format. Every message is a `JSON` object that consists of 5 fields, which are the following:
+* `type`: specifies the type of the message, that is, how the rest of the fields should be interpreted
+* `user_id`: specifies which client the message is from
+* `file_id`: specifies which file the message is for
+* `file_version`: azt jelöli, hogy az adott fájl, melyik verziójára vonatkozik az üzenet (jelenleg nincs használatban!)
+* `file_version`: specifies the file version, should be used for handling race conditions and preventing desynchronization of clients and server (currently not implemented)
+* `payload`: the payloads meaning depends on the type of the message
+
+Here are the possible message types and the payloads meaning:
+* `MSG_FAILED`: unsuccessful operation (e.g.: failed registration or login)
+    * `payload` = error message
+* `MSG_OK`: succesful operation (e.g.: successful login or registration)
+    * `payload` = list of available files
+* `LOGIN`: login
+    * `payload` = JSON object: `{“name”:username , “pass”:password}`
+* `REGISTER`: registration
+    * `payload` = JSON objektum: `{“name”:username , “pass”:password}`
+* `QUIT`: log out of server
+    * `payload` = `NULL`
+* `FILE_REQUEST`: choose file to edit (specified by `file_id`)
+    * `payload` = `NULL`
+* `FILE_RESPONSE`: response to `FILE_REQUEST`
+    * `payload` = serialized buffer
+* `CREATE_FILE`: file creation
+    * `payload` = name of the file
+* `DELETE_FILE`: file deletion (specified by `file_id`)
+    * `payload` = `NULL`
+* `INSERT`: character insertion
+    * `payload` = character to insert
+* `INSERT_LINE`: insert newline
+    * `payload` = `NULL`
+* `DELETE`: deletion
+    * `payload` = `NULL`
+* `MOVE_CURSOR`: cursor movement
+    * `payload` = direction of movement (0: up, 1: down, 2: left, 3: right)
+* `ADD_CURSOR`: create a new cursor at the beggining of the document (cursor specified by user_id)
+    * `payload` = `NULL`
+* `DELETE_CURSOR`: delete a cursor (cursor specified by user_id)
+    * `payload` = `NULL`
+
+### utilities
+
+Since both the `server` and `editor` uses arbitrary high ports for communication, there is a need to determine whether a given port is already in use or we can bind it. This is done by the `port_free` method.
+
+The server stores the user data and files in the following manner. The editable files are simply stored as text documents, and the list of available files are stored in another file (`files.txt`) in `file_id:filename` format. The registered users are stored in `userdate.txt` with the format `username:password`, each line holding one user. The number of the line is equal to the ID of the user.
+
+Handling these files is done by the following functions:
+* `validate_register`: handles registration, if a user with the same name already exists it returns with an error, otherwise saves the user in the appropriate and returns with the id of the user
+* `validate_user`: handles login, if the credentials are valid it returns with the id of the user, otherwise it reports an error
+* `createFile`: creates the file with the specified name and saves the file in the file list if a file with the same name doesn't already exist
+* `deleteFile`: deletes the specified file from the server and the list of files
+* `getFileName`: returns the name of the file with the given id
+* `getFileList`: returns the list of the available files
